@@ -240,12 +240,30 @@ async function fetchAsiaCameras(): Promise<any[]> {
     { id: 'hk-1', lat: 22.3193, lng: 114.1694, name: 'Victoria Harbour', city: 'Hong Kong', country: 'China', feed_url: 'https://tdcctv.data.one.gov.hk', source: 'HK TD' },
     // South Korea
     { id: 'sel-1', lat: 37.5665, lng: 126.9780, name: 'Gwanghwamun Square', city: 'Seoul', country: 'South Korea', feed_url: 'https://www.utic.go.kr', source: 'UTIC' },
+    // Taiwan
+    { id: 'tpe-1', lat: 25.0330, lng: 121.5654, name: 'Taipei 101 View', city: 'Taipei', country: 'Taiwan', feed_url: 'https://168.thb.gov.tw', source: 'THB Taiwan' },
+    // Thailand
+    { id: 'bkk-1', lat: 13.7563, lng: 100.5018, name: 'Sukhumvit Road', city: 'Bangkok', country: 'Thailand', feed_url: 'https://bmatraffic.com', source: 'BMA Traffic' },
+    // Philippines
+    { id: 'mnl-1', lat: 14.5995, lng: 120.9842, name: 'EDSA / Ayala', city: 'Manila', country: 'Philippines', feed_url: 'https://mmdatraffic.gov.ph', source: 'MMDA' },
+    // Indonesia
+    { id: 'jkt-1', lat: -6.2088, lng: 106.8456, name: 'Sudirman Central', city: 'Jakarta', country: 'Indonesia', feed_url: 'https://lewatmana.com', source: 'LewatMana' },
     // UAE
     { id: 'dub-1', lat: 25.2048, lng: 55.2708, name: 'Sheikh Zayed Road', city: 'Dubai', country: 'UAE', feed_url: 'https://www.rta.ae', source: 'RTA Dubai' },
     // India
     { id: 'mum-1', lat: 19.0760, lng: 72.8777, name: 'Marine Drive', city: 'Mumbai', country: 'India', feed_url: 'https://trafficinfo.gov.in', source: 'MMRDA' },
     { id: 'bng-1', lat: 13.0827, lng: 80.2707, name: 'Anna Salai', city: 'Chennai', country: 'India', feed_url: 'https://trafficinfo.gov.in', source: 'TN Police' },
+    // New Zealand
+    { id: 'nz-akl-1', lat: -36.8485, lng: 174.7633, name: 'Auckland Harbour Bridge', city: 'Auckland', country: 'New Zealand', feed_url: 'https://www.nzta.govt.nz', source: 'NZTA' },
+    { id: 'nz-wlg-1', lat: -41.2865, lng: 174.7762, name: 'Terrace Tunnel', city: 'Wellington', country: 'New Zealand', feed_url: 'https://www.nzta.govt.nz', source: 'NZTA' },
     // ── Australia ──
+    // Perth / WA (Expanded Coverage)
+    { id: 'au-per-1', lat: -31.9505, lng: 115.8605, name: 'Mitchell Fwy / CBD', city: 'Perth', country: 'Australia', feed_url: 'https://www.mainroads.wa.gov.au/travel-information/cameras/', source: 'Main Roads WA' },
+    { id: 'au-per-2', lat: -31.9700, lng: 115.8800, name: 'Kwinana Fwy / South Perth', city: 'Perth', country: 'Australia', feed_url: 'https://www.mainroads.wa.gov.au/travel-information/cameras/', source: 'Main Roads WA' },
+    { id: 'au-per-3', lat: -31.9540, lng: 115.8750, name: 'Graham Farmer Fwy / Tunnel East', city: 'Perth', country: 'Australia', feed_url: 'https://www.mainroads.wa.gov.au/travel-information/cameras/', source: 'Main Roads WA' },
+    { id: 'au-per-4', lat: -32.0100, lng: 115.9800, name: 'Roe Hwy / Tonkin Hwy Interchange', city: 'Perth', country: 'Australia', feed_url: 'https://www.mainroads.wa.gov.au/travel-information/cameras/', source: 'Main Roads WA' },
+    { id: 'au-per-5', lat: -31.9610, lng: 115.8950, name: 'Great Eastern Hwy / Burswood', city: 'Perth', country: 'Australia', feed_url: 'https://www.mainroads.wa.gov.au/travel-information/cameras/', source: 'Main Roads WA' },
+    { id: 'au-per-6', lat: -32.0450, lng: 115.7550, name: 'Canning Hwy / Fremantle', city: 'Perth', country: 'Australia', feed_url: 'https://www.mainroads.wa.gov.au/travel-information/cameras/', source: 'Main Roads WA' },
     // Sydney / NSW
     { id: 'au-syd-1', lat: -33.8688, lng: 151.2093, name: 'Sydney Harbour Bridge', city: 'Sydney', country: 'Australia', feed_url: 'https://www.livetraffic.com/desktop/cameras', source: 'TfNSW' },
     { id: 'au-syd-2', lat: -33.8580, lng: 151.2100, name: 'Circular Quay / Opera House', city: 'Sydney', country: 'Australia', feed_url: 'https://www.livetraffic.com/desktop/cameras', source: 'TfNSW' },
@@ -260,9 +278,6 @@ async function fetchAsiaCameras(): Promise<any[]> {
     // Brisbane / QLD
     { id: 'au-bne-1', lat: -27.4698, lng: 153.0251, name: 'Story Bridge', city: 'Brisbane', country: 'Australia', feed_url: 'https://qldtraffic.qld.gov.au/cameras.html', source: 'QLD Traffic' },
     { id: 'au-bne-2', lat: -27.4750, lng: 153.0200, name: 'Captain Cook Bridge', city: 'Brisbane', country: 'Australia', feed_url: 'https://qldtraffic.qld.gov.au/cameras.html', source: 'QLD Traffic' },
-    // Perth / WA
-    { id: 'au-per-1', lat: -31.9505, lng: 115.8605, name: 'Mitchell Fwy / CBD', city: 'Perth', country: 'Australia', feed_url: 'https://www.mainroads.wa.gov.au/travel-information/cameras/', source: 'Main Roads WA' },
-    { id: 'au-per-2', lat: -31.9700, lng: 115.8800, name: 'Kwinana Fwy / South Perth', city: 'Perth', country: 'Australia', feed_url: 'https://www.mainroads.wa.gov.au/travel-information/cameras/', source: 'Main Roads WA' },
     // Adelaide / SA
     { id: 'au-adl-1', lat: -34.9285, lng: 138.6007, name: 'North Terrace / CBD', city: 'Adelaide', country: 'Australia', feed_url: 'https://traffic.sa.gov.au', source: 'DIT SA' },
     // Gold Coast
