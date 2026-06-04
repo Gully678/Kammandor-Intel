@@ -141,11 +141,9 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       attributionControl: false,
       maxPitch: 85,
       transformRequest: (url: string) => {
-        if (url.includes('tiles.basemaps.cartocdn.com')) {
-          return { url: url.replace('https://tiles.basemaps.cartocdn.com', '/api/carto-tiles') };
-        }
-        if (url.includes('basemaps.cartocdn.com')) {
-          return { url: url.replace('https://basemaps.cartocdn.com', '/api/tiles') };
+        // Route all CARTO CDN requests through the Cloudflare edge worker
+        if (url.includes('cartocdn.com')) {
+          return { url: url.replace('https://', 'https://osiris-tiles.soulsimplifai.workers.dev/') };
         }
         return { url };
       },

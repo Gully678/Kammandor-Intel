@@ -12,18 +12,6 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: '**' },
     ],
   },
-  async rewrites() {
-    return [
-      {
-        source: '/api/tiles/:path*',
-        destination: 'https://basemaps.cartocdn.com/:path*',
-      },
-      {
-        source: '/api/carto-tiles/:path*',
-        destination: 'https://tiles.basemaps.cartocdn.com/:path*',
-      }
-    ];
-  },
   async headers() {
     return [
       {
