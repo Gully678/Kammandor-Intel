@@ -177,35 +177,32 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
           </div>
         ))}
 
-        {/* MOBILE THEME TOGGLE — 2-MODE */}
+        {/* MOBILE THEME TOGGLE */}
         {setTheme && (
-          <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-white/5">
-            <div className="text-[10px] font-bold font-mono tracking-widest border-b border-white/10 pb-1" style={{ color: 'rgba(var(--gold-rgb), 1)' }}>
-              MODE
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-[var(--border-primary)] px-2">
+            <div className="text-[10px] font-bold font-mono tracking-widest text-[var(--text-secondary)]">
+              GHOST MODE
             </div>
-            <div className="flex gap-1 p-0.5 rounded-lg bg-white/5 border border-white/5">
-              {(['core', 'ghost'] as const).map((t) => {
-                const isActive = theme === t;
-                const color = t === 'core' ? '#D4AF37' : '#B388FF';
-                return (
-                  <button
-                    key={t}
-                    onClick={() => setTheme(t)}
-                    className={`flex-1 py-1.5 rounded-md text-[10px] font-mono uppercase tracking-[0.15em] transition-all duration-300 ${
-                      isActive ? 'font-bold' : 'text-white/30 hover:text-white/50'
-                    }`}
-                    style={isActive ? {
-                      color,
-                      background: `${color}12`,
-                      boxShadow: `0 0 16px ${color}25, inset 0 0 12px ${color}08`,
-                      border: `1px solid ${color}35`,
-                    } : { border: '1px solid transparent' }}
-                  >
-                    {t}
-                  </button>
-                );
-              })}
-            </div>
+            <button
+              onClick={() => setTheme(theme === 'core' ? 'ghost' : 'core')}
+              className="relative w-12 h-6 rounded-full transition-all duration-500 ease-in-out border flex items-center px-0.5 cursor-pointer hover:shadow-lg"
+              style={{
+                backgroundColor: theme === 'ghost' ? 'rgba(179, 136, 255, 0.15)' : 'rgba(0,0,0,0.4)',
+                borderColor: theme === 'ghost' ? 'rgba(179, 136, 255, 0.5)' : 'rgba(255,255,255,0.1)',
+                boxShadow: theme === 'ghost' ? '0 0 15px rgba(179, 136, 255, 0.3), inset 0 0 8px rgba(179, 136, 255, 0.2)' : 'inset 0 0 5px rgba(0,0,0,0.5)'
+              }}
+            >
+              <motion.div 
+                layout
+                className="w-4 h-4 rounded-full"
+                style={{
+                  backgroundColor: theme === 'ghost' ? '#B388FF' : 'rgba(255,255,255,0.4)',
+                  boxShadow: theme === 'ghost' ? '0 0 10px #B388FF' : 'none'
+                }}
+                animate={{ x: theme === 'ghost' ? 24 : 0 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              />
+            </button>
           </div>
         )}
 
@@ -214,7 +211,13 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
   }
 
   return (
-    <div className="absolute top-0 left-0 h-full w-[80px] border-r border-white/5 flex flex-col pt-32 pb-8 z-50 pointer-events-auto bg-black/20 backdrop-blur-[2px]">
+    <motion.div 
+      initial={{ x: -100, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+      className="absolute top-0 left-0 h-full w-[80px] border-r border-[var(--border-primary)] flex flex-col pt-32 pb-8 z-50 pointer-events-auto bg-[var(--bg-panel)] backdrop-blur-[24px] saturate-150"
+      style={{ boxShadow: '4px 0 24px rgba(0,0,0,0.5)' }}
+    >
       
       <div className="flex-1 flex flex-col gap-8 px-2">
         {LAYER_GROUPS.map((group) => {
@@ -308,37 +311,34 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
         })}
       </div>
 
-      {/* DESKTOP THEME TOGGLE — 2-MODE SWITCH */}
+      {/* DESKTOP THEME TOGGLE */}
       {setTheme && (
-        <div className="mt-auto px-2 pt-4 border-t border-white/5 flex flex-col items-center gap-2 relative z-50">
-          <div className="text-[7px] font-mono tracking-[0.25em] text-white/25 mb-0.5">MODE</div>
-          <div className="flex flex-col gap-1.5 w-full">
-            {(['core', 'ghost'] as const).map((t) => {
-              const isActive = theme === t;
-              const color = t === 'core' ? '#D4AF37' : '#B388FF';
-              return (
-                <button 
-                  key={t}
-                  onClick={() => setTheme(t)}
-                  className={`text-[9px] font-mono tracking-[0.2em] py-1.5 rounded-md transition-all duration-300 ${
-                    isActive ? 'font-bold' : 'text-white/25 hover:text-white/50'
-                  }`}
-                  style={isActive ? {
-                    color,
-                    background: `${color}10`,
-                    boxShadow: `0 0 14px ${color}20, inset 0 0 10px ${color}06`,
-                    border: `1px solid ${color}30`,
-                  } : { border: '1px solid transparent' }}
-                >
-                  {t.toUpperCase()}
-                </button>
-              );
-            })}
-          </div>
+        <div className="mt-auto px-2 pt-6 pb-2 border-t border-[var(--border-primary)] flex flex-col items-center gap-3 relative z-50">
+          <div className="text-[9px] font-mono tracking-[0.25em] text-[var(--text-secondary)]">GHOST PROTOCOL</div>
+          <button
+            onClick={() => setTheme(theme === 'core' ? 'ghost' : 'core')}
+            className="relative w-14 h-7 rounded-full transition-all duration-500 ease-in-out border flex items-center px-1 cursor-pointer hover:shadow-lg"
+            style={{
+              backgroundColor: theme === 'ghost' ? 'rgba(179, 136, 255, 0.15)' : 'rgba(0,0,0,0.4)',
+              borderColor: theme === 'ghost' ? 'rgba(179, 136, 255, 0.5)' : 'rgba(255,255,255,0.1)',
+              boxShadow: theme === 'ghost' ? '0 0 15px rgba(179, 136, 255, 0.3), inset 0 0 8px rgba(179, 136, 255, 0.2)' : 'inset 0 0 5px rgba(0,0,0,0.5)'
+            }}
+          >
+            <motion.div 
+              layout
+              className="w-5 h-5 rounded-full"
+              style={{
+                backgroundColor: theme === 'ghost' ? '#B388FF' : 'rgba(255,255,255,0.4)',
+                boxShadow: theme === 'ghost' ? '0 0 10px #B388FF' : 'none'
+              }}
+              animate={{ x: theme === 'ghost' ? 28 : 0 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+            />
+          </button>
         </div>
       )}
 
-    </div>
+    </motion.div>
   );
 }
 
