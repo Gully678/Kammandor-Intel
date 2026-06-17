@@ -182,7 +182,7 @@ export default function Dashboard() {
 
     // Delay geolocation until map is ready (after splash screen clears)
     const geoTimer = setTimeout(() => {
-      fetch('http://ip-api.com/json/?fields=status,lat,lon,city,regionName,country,query,isp,org,as')
+      fetch('/api/geo')
         .then(r => r.json())
         .then(geo => {
           if (geo.status === 'success' && geo.lat && geo.lon) {
