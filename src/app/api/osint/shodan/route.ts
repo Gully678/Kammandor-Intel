@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { guardActiveRecon } from '@/config/featureFlags';
 
 export async function GET(req: Request) {
+  const blocked = guardActiveRecon(); if (blocked) return blocked;
   const { searchParams } = new URL(req.url);
   const ip = searchParams.get('ip');
 

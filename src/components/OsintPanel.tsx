@@ -12,11 +12,9 @@ import {
   Maximize2, Minimize2, Gavel, Bitcoin, Phone, Terminal, ShieldAlert
 } from 'lucide-react';
 import { ipToNumber, numberToIp, calculateSubnetStart, classifyDevice, assessRisk, batchFetch, ShodanInternetDBResponse, SweepDevice } from '@/lib/osint-utils';
+import { FLAGS } from '@/config/featureFlags';
 
 const TABS = [
-  { id: 'scanner', label: 'PORT SCAN', icon: Radar, placeholder: 'IP or hostname', color: '#00E5FF' },
-  { id: 'vuln', label: 'VULN SWEEP', icon: Bug, placeholder: 'IP or hostname', color: '#FF3D3D' },
-
   { id: 'dns', label: 'DNS', icon: Server, placeholder: 'Domain name', color: '#448AFF' },
   { id: 'whois', label: 'WHOIS', icon: FileText, placeholder: 'Domain name', color: '#FFD700' },
   { id: 'certs', label: 'CERTS', icon: Lock, placeholder: 'Domain name', color: '#E040FB' },
@@ -34,10 +32,13 @@ const TABS = [
   { id: 'sweep', label: 'IP SWEEP', icon: Crosshair, placeholder: 'Enter IP address (e.g. 8.8.8.8)', color: '#FF3D3D' },
 ];
 
+// Tabs gated behind activeReconEnabled flag
+const ACTIVE_RECON_TAB_IDS = new Set(['sweep', 'shodan', 'leaks']);
+
 interface OsintPanelProps { isOpen?: boolean; onClose?: () => void; isMobile?: boolean; onSweepVisualize?: (data: any) => void; onScanGeolocate?: (target: string, data: any) => void; }
 
 function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintPanelProps) {
-  const [activeTab, setActiveTab] = useState('scanner');
+  const [activeTab, setActiveTab] = useState('dns');
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any>(null);
@@ -113,7 +114,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
     setLoading(true); setError(''); setResults(null);
 
     // IP Sweep / Vuln Scan — separate flow
-    if (activeTab === 'sweep' || activeTab === 'vuln') {
+    if (activeTab === 'sweep') {
       setSweepResult(null);
       const cidr = sweepCidr;
       const totalHosts = Math.pow(2, 32 - cidr);
@@ -196,11 +197,10 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         case 'leaks': url = `https://api.xposedornot.com/v1/breach-analytics?email=${encodeURIComponent(query)}`; break;
         case 'crypto': url = `/api/osint/crypto?address=${encodeURIComponent(query)}`; break;
         case 'github': url = `/api/osint/github?user=${encodeURIComponent(query)}`; break;
-        case 'scanner': url = `/api/scanner?target=${encodeURIComponent(query)}&type=${scanType}`; break;
-        case 'headers': url = `/api/scanner?target=${encodeURIComponent(query)}&type=headers`; break;
-        case 'ssl': url = `/api/scanner?target=${encodeURIComponent(query)}&type=ssl`; break;
-        case 'subdomains': url = `/api/scanner?target=${encodeURIComponent(query)}&type=subdomains`; break;
-        case 'tech': url = `/api/scanner?target=${encodeURIComponent(query)}&type=tech`; break;
+        case 'headers': url = `/api/osint/certs?domain=${encodeURIComponent(query)}`; break;
+        case 'ssl': url = `/api/osint/certs?domain=${encodeURIComponent(query)}`; break;
+        case 'subdomains': url = `/api/osint/dns?domain=${encodeURIComponent(query)}&type=subdomains`; break;
+        case 'tech': url = `/api/osint/ip?ip=${encodeURIComponent(query)}`; break;
         case 'shodan': url = `https://internetdb.shodan.io/${encodeURIComponent(query)}`; break;
       }
       const res = await fetch(url, activeTab === 'shodan' ? { cache: 'no-store' } : undefined);
@@ -247,7 +247,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
           if (data.lat && data.lng && onScanGeolocate) {
              onScanGeolocate(query, { lat: data.lat, lng: data.lng, type: 'phone', region: data.region });
           }
-        } else if (activeTab !== 'sweep' && activeTab !== 'vuln' && activeTab !== 'crypto' && activeTab !== 'mac' && activeTab !== 'bgp' && activeTab !== 'github' && activeTab !== 'leaks' && activeTab !== 'phone') {
+        } else if (activeTab !== 'sweep' && activeTab !== 'crypto' && activeTab !== 'mac' && activeTab !== 'bgp' && activeTab !== 'github' && activeTab !== 'leaks' && activeTab !== 'phone') {
           fetch(`/api/osint/ip?ip=${encodeURIComponent(query)}`)
             .then(r => r.json())
             .then(locData => {
@@ -330,85 +330,6 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
   const renderStructuredResults = () => {
     if (!results) return null;
     const r = results;
-
-    // ── PORT SCAN ──
-    if (activeTab === 'scanner') {
-      const ports = r.ports || r.open_ports || r.results || [];
-      const host = r.host || r.target || query;
-      return (
-        <div>
-          <SectionHeader title="HOST INFO" icon={Server} color="#00E5FF" />
-          <ResultRow label="Target" value={host} color="#00E5FF" />
-          <ResultRow label="Scan Type" value={r.scan_type || scanType} />
-          <ResultRow label="Duration" value={r.duration || r.scan_time} />
-          {Array.isArray(ports) && ports.length > 0 && (
-            <>
-              <SectionHeader title={`OPEN PORTS (${ports.length})`} icon={Wifi} color="#00E676" />
-              <div className="space-y-0.5">
-                {ports.map((p: any, i: number) => (
-                  <PortRow key={i} port={p.port || p} state={p.state || 'open'} service={p.service || p.name} version={p.version} />
-                ))}
-              </div>
-            </>
-          )}
-          {(!Array.isArray(ports) || ports.length === 0) && renderFallback()}
-        </div>
-      );
-    }
-
-    // ── VULN SCAN ──
-    if (activeTab === 'vuln') {
-      const vulns = r.vulnerabilities || r.vulns || r.cves || [];
-      const exploits = vulns.filter((v: any) => v.is_exploit);
-      const regularVulns = vulns.filter((v: any) => !v.is_exploit);
-      
-      return (
-        <div>
-          <SectionHeader title="VULNERABILITY ASSESSMENT" icon={Bug} color="#FF3D3D" />
-          <ResultRow label="Target" value={r.target || query} color="#FF3D3D" />
-          <ResultRow label="Total CVEs" value={Array.isArray(vulns) ? vulns.length : 0} color={Array.isArray(vulns) && vulns.length > 0 ? '#FF3D3D' : '#00E676'} />
-          <ResultRow label="Risk Level" value={r.risk_level || r.severity} />
-          {Array.isArray(regularVulns) && regularVulns.length > 0 && (
-            <div className="mt-2 space-y-1">
-              {regularVulns.slice(0, 20).map((v: any, i: number) => (
-                <div key={i} className="p-2 rounded-lg border border-red-500/20 bg-red-500/5 flex flex-col">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono font-bold text-red-400">{v.id || v.cve || v.name}</span>
-                    {v.severity && <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded ${v.severity === 'CRITICAL' ? 'bg-red-500/20 text-red-400' : v.severity === 'HIGH' ? 'bg-orange-500/20 text-orange-400' : 'bg-yellow-500/20 text-yellow-400'}`}>{v.severity}</span>}
-                  </div>
-                  {v.cvss && <div className="text-[9px] font-mono text-[var(--text-muted)] mt-1">CVSS: {v.cvss} ({v.type || 'cve'})</div>}
-                  {v.description && <p className="text-[9px] font-mono text-[var(--text-muted)] mt-1 line-clamp-2">{v.description}</p>}
-                </div>
-              ))}
-            </div>
-          )}
-          
-          {exploits.length > 0 && (
-            <div className="mt-4">
-              <SectionHeader title={`POSSIBLE EXPLOITS (${exploits.length})`} icon={AlertTriangle} color="#FF9500" />
-              <div className="mt-2 space-y-1">
-                {exploits.slice(0, 10).map((e: any, i: number) => (
-                  <div key={i} className="p-2 rounded-lg border border-orange-500/30 bg-orange-500/10 flex flex-col">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono font-bold text-orange-400">{e.id}</span>
-                      <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400">EXPLOIT</span>
-                    </div>
-                    <div className="text-[9px] font-mono text-[var(--text-muted)] mt-1 flex justify-between">
-                      <span>Source: {e.type?.toUpperCase() || 'UNKNOWN'}</span>
-                      {e.cvss && <span>CVSS: {e.cvss}</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {(!Array.isArray(vulns) || vulns.length === 0) && renderFallback()}
-        </div>
-      );
-    }
-
-
 
     // ── DNS ──
     if (activeTab === 'dns') {
@@ -698,21 +619,19 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
       <div className="flex flex-col gap-1">
         {/* Sweep & Self Track Actions */}
         <div className="grid grid-cols-2 gap-2">
-          {TABS.filter(t => t.id === 'sweep').map(tab => (
-            <button key={tab.id} onClick={() => { 
-                  setActiveTab(tab.id); setQuery(''); setResults(null); setError(''); 
-                }}
+          {FLAGS.activeReconEnabled && (
+            <button onClick={() => { setActiveTab('sweep'); setQuery(''); setResults(null); setError(''); }}
                 className={`w-full py-4 rounded-lg border flex flex-col items-center justify-center gap-2 transition-all ${
-                  activeTab === tab.id ? 'bg-[var(--bg-tertiary)] border-opacity-50' : 'bg-[#0D0D0C] hover:bg-[var(--hover-accent)] border-transparent'
+                  activeTab === 'sweep' ? 'bg-[var(--bg-tertiary)] border-opacity-50' : 'bg-[#0D0D0C] hover:bg-[var(--hover-accent)] border-transparent'
                 }`}
-                style={{ borderColor: activeTab === tab.id ? tab.color : 'rgba(255, 61, 61, 0.2)' }}
+                style={{ borderColor: activeTab === 'sweep' ? '#FF3D3D' : 'rgba(255, 61, 61, 0.2)' }}
               >
                 <div className="flex items-center gap-3">
-                  <tab.icon className="w-5 h-5" style={{ color: tab.color }} />
-                  <span className="font-mono font-bold tracking-[0.1em] text-[11px]" style={{ color: tab.color }}>GLOBAL SWEEP</span>
+                  <Crosshair className="w-5 h-5" style={{ color: '#FF3D3D' }} />
+                  <span className="font-mono font-bold tracking-[0.1em] text-[11px]" style={{ color: '#FF3D3D' }}>GLOBAL SWEEP</span>
                 </div>
             </button>
-          ))}
+          )}
           <button onClick={handleSelfTrack}
             disabled={loading}
             className={`w-full py-4 rounded-lg border flex flex-col items-center justify-center gap-2 transition-all ${loading ? 'opacity-60 cursor-wait' : 'hover:bg-[var(--hover-accent)] hover:shadow-[0_0_20px_rgba(0,230,118,0.15)]'} bg-[#0D0D0C]`}
@@ -726,7 +645,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         </div>
         {/* Other Tools */}
         <div className="grid grid-cols-5 gap-1 mt-1">
-          {TABS.filter(t => t.id !== 'sweep').map(tab => (
+          {TABS.filter(t => t.id !== 'sweep' && (FLAGS.activeReconEnabled || !ACTIVE_RECON_TAB_IDS.has(t.id))).map(tab => (
             <button key={tab.id} onClick={() => { setActiveTab(tab.id); setQuery(''); setResults(null); setError(''); }}
               className={`flex flex-col items-center gap-1 px-1 py-2 rounded-lg text-[8px] font-mono tracking-wider transition-all border ${activeTab === tab.id ? 'border-opacity-40 bg-opacity-15' : 'border-transparent hover:bg-[var(--hover-accent)]'}`}
               style={{ borderColor: activeTab === tab.id ? tab.color : 'transparent', backgroundColor: activeTab === tab.id ? `${tab.color}15` : undefined, color: activeTab === tab.id ? tab.color : 'var(--text-muted)' }}>
@@ -755,13 +674,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         </div>
         
         {/* Secondary Controls */}
-        {activeTab === 'scanner' && (
-          <select value={scanType} onChange={e => setScanType(e.target.value)}
-            className="bg-[var(--bg-primary)]/60 border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-mono text-[var(--text-muted)] outline-none w-full">
-            <option value="quick">QUICK SCAN</option><option value="deep">DEEP SCAN</option><option value="ports">TOP 1000 PORTS</option>
-          </select>
-        )}
-        {(activeTab === 'sweep' || activeTab === 'vuln') && (
+        {(activeTab === 'sweep') && (
           <div className="flex items-center justify-between bg-[var(--bg-primary)]/60 border border-[var(--border-primary)] rounded-lg p-1">
             <span className="text-[9px] font-mono text-[var(--text-muted)] pl-2">SUBNET MASK:</span>
             <div className="flex items-center gap-0.5">
@@ -1041,7 +954,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-secondary)] bg-[#111]">
           <div className="flex items-center gap-3">
             <Radar className="w-5 h-5 text-[var(--cyan-primary)]" />
-            <span className="hud-text text-[16px] text-[var(--text-primary)]">KINTEL RECON TOOLKIT</span>
+            <span className="hud-text text-[16px] text-[var(--text-primary)]">Organisation &amp; Asset Intelligence</span>
             <span className="gotham-tag gotham-tag--info" style={{ fontSize: '9px' }}>EXPANDED VIEW</span>
             <span className="gotham-tag gotham-tag--classified" style={{ fontSize: '8px' }}>{TABS.length} MODULES</span>
           </div>
@@ -1064,8 +977,8 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-[rgba(255,255,255,0.05)] bg-[rgba(0,0,0,0.3)] hover:bg-[var(--hover-accent)] transition-colors">
         <button onClick={() => setExpanded(!expanded)} className="flex items-center gap-2 flex-1">
           <Radar className="w-3.5 h-3.5 text-[var(--cyan-primary)]" />
-          <span className="hud-text text-[12px] text-[var(--text-primary)]">RECON TOOLKIT</span>
-          <span className="gotham-tag gotham-tag--info" style={{ fontSize: '7px', padding: '1px 5px' }}>{TABS.length} TOOLS</span>
+          <span className="hud-text text-[12px] text-[var(--text-primary)]">Organisation &amp; Asset Intelligence</span>
+          <span className="gotham-tag gotham-tag--info" style={{ fontSize: '7px', padding: '1px 5px' }}>INTEL TOOLS</span>
         </button>
         <div className="flex items-center gap-3">
           <button onClick={() => setIsFullScreen(true)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors" title="Full Screen">
