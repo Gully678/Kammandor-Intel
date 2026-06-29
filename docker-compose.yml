@@ -43,11 +43,13 @@ services:
     networks:
       - default
 
-  osiris-intel:
+  entity-resolver:
     build:
       context: ./intel
       dockerfile: Dockerfile
-    container_name: osiris-intel
+    container_name: entity-resolver
+    environment:
+      - ENTITY_RESOLVER_URL=http://entity-resolver:4000
     ports:
       - "4000:4000"
     restart: unless-stopped

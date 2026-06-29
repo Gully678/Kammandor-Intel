@@ -6,16 +6,16 @@ export const dynamic = 'force-dynamic';
 /**
  * Thin proxy to the Kammandor Intel Intelligence Layer.
  *
- * In Docker: fetches from http://osiris-intel:4000/resolve (legacy service name)
- * In dev:    fetches from http://localhost:4000/resolve
+ * Configurable via ENTITY_RESOLVER_URL env var (defaults to http://entity-resolver:4000).
+ * In dev without the env set: falls back to http://localhost:4000.
  *
  * All intelligence logic lives in the intel container — this route
  * just validates the request and forwards it.
  */
 
-const INTEL_URL = process.env.INTEL_URL || (
+const INTEL_URL = process.env.ENTITY_RESOLVER_URL || (
   process.env.NODE_ENV === 'production'
-    ? 'http://osiris-intel:4000'
+    ? 'http://entity-resolver:4000'
     : 'http://localhost:4000'
 );
 
