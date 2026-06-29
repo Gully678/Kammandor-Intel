@@ -53,10 +53,25 @@ export const SOURCES: SourceDef[] = [
     key: 'markets-fx',
     label: 'FX & Markets Data',
     category: 'markets',
-    tier: 'free',
+    // tier: 'premium' for paid providers (twelvedata/finnhub/alphavantage);
+    // free ECB FX fallback available when MARKET_DATA_PROVIDER=ecb (default).
+    tier: 'premium',
+    // platform-key: key managed by Kammandor platform on paid plans;
+    // tenant-key upgrade path available for BYOK providers.
     auth: 'platform-key',
-    renderMode: 'map-layer',
+    renderMode: 'panel',
     enabledByDefault: true,
+  },
+  {
+    key: 'reviews',
+    label: 'Reviews & Sentiment',
+    category: 'Reviews & Sentiment',
+    // byok: tenant supplies their own platform key (Trustpilot, G2, Google, Yelp,
+    //       or aggregator credentials); keyless App Store RSS available for dev.
+    tier: 'byok',
+    auth: 'tenant-key',
+    renderMode: 'panel',
+    enabledByDefault: false,
   },
   {
     key: 'sec-edgar',
