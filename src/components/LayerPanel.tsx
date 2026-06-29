@@ -20,7 +20,7 @@ interface LayerPanelProps {
 const LAYER_GROUPS = [
   {
     label: 'SDK',
-    fullLabel: 'OSIRIS SDK',
+    fullLabel: 'KINTEL SDK',
     icon: Database,
     layers: [
       { key: 'sdk_sea', label: 'Maritime Lines', dataKey: 'sdk_entities' },

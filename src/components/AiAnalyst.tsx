@@ -21,7 +21,7 @@ import {
 import type { IntelligenceContext } from '@/lib/ai-engine';
 
 /* ═══════════════════════════════════════════════════════════════
-   OSIRIS — AI Intelligence Analyst Panel
+   Kammandor Intel — AI Intelligence Analyst Panel
    Premium glass-panel chat interface for real-time intelligence
    analysis powered by Gemini 2.0 Flash
    ═══════════════════════════════════════════════════════════════ */
@@ -201,7 +201,7 @@ export default function AiAnalyst({ data }: AiAnalystProps) {
 
   // Load saved key on mount
   useEffect(() => {
-    const saved = localStorage.getItem('osiris-gemini-key');
+    const saved = localStorage.getItem('kintel-gemini-key');
     if (saved) {
       setApiKeyInput(saved);
       setKeySaved(true);
@@ -222,7 +222,7 @@ export default function AiAnalyst({ data }: AiAnalystProps) {
 
   const getHeaders = useCallback((): Record<string, string> => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    const savedKey = localStorage.getItem('osiris-gemini-key');
+    const savedKey = localStorage.getItem('kintel-gemini-key');
     if (savedKey) {
       headers['x-gemini-key'] = savedKey;
     }
@@ -346,14 +346,14 @@ export default function AiAnalyst({ data }: AiAnalystProps) {
   const saveApiKey = useCallback(() => {
     const key = apiKeyInput.trim();
     if (key) {
-      localStorage.setItem('osiris-gemini-key', key);
+      localStorage.setItem('kintel-gemini-key', key);
       setKeySaved(true);
       setTimeout(() => setShowSettings(false), 600);
     }
   }, [apiKeyInput]);
 
   const clearApiKey = useCallback(() => {
-    localStorage.removeItem('osiris-gemini-key');
+    localStorage.removeItem('kintel-gemini-key');
     setApiKeyInput('');
     setKeySaved(false);
   }, []);
@@ -445,10 +445,10 @@ export default function AiAnalyst({ data }: AiAnalystProps) {
                 <div className="flex items-center gap-2.5">
                   <div className="relative">
                     <Shield className="w-4.5 h-4.5 text-[var(--gold-primary)]" />
-                    <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-[var(--alert-green)] animate-osiris-pulse" />
+                    <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-[var(--alert-green)] animate-kintel-pulse" />
                   </div>
                   <div className="flex flex-col">
-                    <span className="hud-text text-[11px] text-[var(--text-heading)]">OSIRIS ANALYST</span>
+                    <span className="hud-text text-[11px] text-[var(--text-heading)]">KINTEL ANALYST</span>
                     <span className="text-[7px] font-mono tracking-[0.2em] text-[var(--text-muted)]">
                       GEMINI 2.0 FLASH • ONLINE
                     </span>
@@ -547,7 +547,7 @@ export default function AiAnalyst({ data }: AiAnalystProps) {
                         )}
                       </div>
                       <p className="text-[8px] font-mono text-[var(--text-muted)] leading-relaxed">
-                        Your key is stored locally and sent only to the OSIRIS server. Get a free key at{' '}
+                        Your key is stored locally and sent only to the Kammandor Intel server. Get a free key at{' '}
                         <a
                           href="https://aistudio.google.com/apikey"
                           target="_blank"
@@ -679,7 +679,7 @@ export default function AiAnalyst({ data }: AiAnalystProps) {
                               : 'var(--gold-primary)',
                           }}
                         >
-                          {msg.role === 'user' ? 'OPERATOR' : 'OSIRIS ANALYST'}
+                          {msg.role === 'user' ? 'OPERATOR' : 'KINTEL ANALYST'}
                         </span>
                         <span className="text-[7px] font-mono text-[var(--text-muted)] ml-auto">
                           {new Date(msg.timestamp).toLocaleTimeString([], {

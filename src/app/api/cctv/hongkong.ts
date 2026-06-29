@@ -1,5 +1,5 @@
 /**
- * OSIRIS — Hong Kong CCTV Cameras (Transport Department)
+ * KINTEL — Hong Kong CCTV Cameras (Transport Department)
  * Source: https://tdcctv.data.one.gov.hk/
  * ~230 cameras — NO API KEY NEEDED, direct JPG URLs
  */

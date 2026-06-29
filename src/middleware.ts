@@ -5,16 +5,16 @@ export function middleware(request: NextRequest, event: NextFetchEvent) {
   const url = request.nextUrl.pathname;
   
   const ip = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || '127.0.0.1';
-  const userAgent = request.headers.get('user-agent') || 'Unknown OSIRIS Client';
+  const userAgent = request.headers.get('user-agent') || 'Unknown Client';
   
   const basePayload = {
     hostname: request.nextUrl.hostname,
     language: "en-US",
     referrer: request.headers.get('referer') || "",
     screen: "1920x1080",
-    title: "OSIRIS",
+    title: process.env.NEXT_PUBLIC_SITE_TITLE || "Kammandor Intel",
     url: url,
-    website: process.env.UMAMI_WEBSITE_ID || "cd8f216c-fc3f-45f5-ba1a-e10309a61d18"
+    website: process.env.UMAMI_WEBSITE_ID || ""
   };
 
   const pageView = fetch('http://umami-umami-1:3000/api/send', {

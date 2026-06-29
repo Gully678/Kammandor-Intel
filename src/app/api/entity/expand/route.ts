@@ -4,9 +4,9 @@ import { isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 export const dynamic = 'force-dynamic';
 
 /**
- * Thin proxy to the OSIRIS Intelligence Layer (osiris-intel).
+ * Thin proxy to the Kammandor Intel Intelligence Layer.
  *
- * In Docker: fetches from http://osiris-intel:4000/resolve
+ * In Docker: fetches from http://osiris-intel:4000/resolve (legacy service name)
  * In dev:    fetches from http://localhost:4000/resolve
  *
  * All intelligence logic lives in the intel container — this route
@@ -66,7 +66,7 @@ export async function GET(req: Request) {
       headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200' },
     });
   } catch (e) {
-    console.error('[OSIRIS] Intel proxy error:', e instanceof Error ? e.message : e);
+    console.error('[KINTEL] Intel proxy error:', e instanceof Error ? e.message : e);
     return NextResponse.json(
       { error: 'Intelligence layer unavailable', nodes: [], links: [] },
       { status: 502 },

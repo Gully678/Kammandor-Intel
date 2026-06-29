@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 
 /**
- * OSIRIS — Ukraine Frontline API
+ * KINTEL — Ukraine Frontline API
  * Fetches live warfront GeoJSON from DeepState Map
  */
 

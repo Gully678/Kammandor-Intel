@@ -1,12 +1,30 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap');
 
 /* ═══════════════════════════════════════════════════════════════
-   OSIRIS — Global Intelligence Platform Design System
-   Egyptian Mythology × Dark Ops × Glassmorphism
+   Kammandor Intel — Design System
+   Private Capital Intelligence × Hard Assets × Live Data
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
+
+  /* ── Kammandor Intel Brand Tokens ── */
+  --ink: #16141C;
+  --page: #ECE5D7;
+  --card: #FFFDF8;
+  --card-border: #EAE2D2;
+  --gold: #E8A020;
+  --gold-deep: #C47D0E;
+  --gold-text: #9A7B1C;
+  --on-ink: #FAF6EE;
+  --muted: #6F665D;
+  --live: #0E9F6E;
+
+  /* ── Kammandor Fonts ── */
+  --font-serif: var(--font-serif, 'Instrument Serif', Georgia, serif);
+  --font-sans: var(--font-sans, 'DM Sans', system-ui, sans-serif);
+  --font-mono: var(--font-mono, 'DM Mono', 'JetBrains Mono', monospace);
+
   --gold-rgb: 212, 175, 55;
   --cyan-rgb: 0, 229, 255;
   /* ── Core Palette ── */
@@ -174,15 +192,15 @@ html, body {
   border-radius: 10px;
 }
 
-/* ── Osiris Gold Glow ── */
-.osiris-glow {
+/* ── Kammandor Intel Gold Glow ── */
+.kintel-glow, .kintel-glow {
   box-shadow:
     0 0 20px rgba(var(--gold-rgb), 0.12),
     0 0 60px rgba(var(--gold-rgb), 0.06),
     0 4px 30px rgba(0, 0, 0, 0.5);
 }
 
-.osiris-glow-cyan {
+.kintel-glow-cyan, .kintel-glow-cyan {
   box-shadow:
     0 0 20px rgba(var(--cyan-rgb), 0.1),
     0 0 60px rgba(var(--cyan-rgb), 0.05);
@@ -216,17 +234,17 @@ html, body {
 /* ═══════════════════════════════════════════════════════════════
    ANIMATIONS
    ═══════════════════════════════════════════════════════════════ */
-@keyframes osiris-pulse {
+@keyframes kintel-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
 
-@keyframes osiris-scan {
+@keyframes kintel-scan {
   0% { transform: translateY(-100%); }
   100% { transform: translateY(100vh); }
 }
 
-@keyframes osiris-rotate {
+@keyframes kintel-rotate {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
@@ -246,7 +264,7 @@ html, body {
   50% { opacity: 0.6; }
 }
 
-.animate-osiris-pulse { animation: osiris-pulse 2s ease-in-out infinite; }
+.animate-kintel-pulse, .animate-kintel-pulse { animation: kintel-pulse 2s ease-in-out infinite; }
 .animate-glow-pulse { animation: glow-pulse 3s ease-in-out infinite; }
 .animate-data-pulse { animation: data-pulse 2s ease-in-out infinite; }
 .animate-threat-flash { animation: threat-flash 1.5s ease-in-out infinite; }

@@ -3,7 +3,7 @@
  * ║  POLYBOLOS SDK — Core Type System                               ║
  * ║  Standardized Entity Model for Multi-Domain Intelligence        ║
  * ║                                                                 ║
- * ║  Built on OSIRIS by Souleimen Mrad                              ║
+ * ║  Kammandor Intel — forked from the open-source Osiris project (MIT)                              ║
  * ╚══════════════════════════════════════════════════════════════════╝
  */
 
@@ -134,8 +134,8 @@ export type LatticeConnectionStatus =
 // ── SDK Client Types ───────────────────────────────────────────────
 
 export interface PolybolosClientConfig {
-  /** Base URL for OSIRIS API endpoints */
-  osirisBaseUrl: string;
+  /** Base URL for Kammandor Intel API endpoints */
+  baseUrl: string;
   /** Optional Lattice configuration */
   lattice?: LatticeConfig;
   /** Entity update callback */

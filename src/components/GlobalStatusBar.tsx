@@ -96,7 +96,7 @@ export default function GlobalStatusBar() {
             .slice(0, 5);
           setQuakes(majorQuakes);
         }
-      } catch (e) { console.warn('[OSIRIS] Suppressed error:', e instanceof Error ? e.message : e); }
+      } catch (e) { console.warn('[KINTEL] Suppressed error:', e instanceof Error ? e.message : e); }
     };
     fetchData();
     const iv = setInterval(fetchData, 60000); // 1 min (to keep fresh)

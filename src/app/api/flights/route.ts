@@ -6,7 +6,7 @@ import { stealthFetch } from '@/lib/stealthFetch';
 export const maxDuration = 60;
 
 /**
- * OSIRIS — Flight Data API
+ * KINTEL — Flight Data API
  * Fetches real-time aircraft positions from adsb.lol (no API key required)
  * Covers 6 global regions for maximum coverage
  */
@@ -238,7 +238,7 @@ export async function GET() {
 
     // Fallback: If OpenSky failed (429 rate limit / timeout), fan out to adsb.lol regions
     if (!openSkyWorked) {
-      console.warn('[OSIRIS] OpenSky unavailable — falling back to adsb.lol regional fetch');
+      console.warn('[KINTEL] OpenSky unavailable — falling back to adsb.lol regional fetch');
       const regionResults = await Promise.allSettled(REGIONS.map(r => fetchRegion(r)));
       for (const result of regionResults) {
         if (result.status === 'fulfilled') {

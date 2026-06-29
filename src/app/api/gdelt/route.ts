@@ -5,7 +5,7 @@ export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
 /**
- * OSIRIS — Real-Time Geopolitical Events (GDELT 2.0 GeoJSON API)
+ * KINTEL — Real-Time Geopolitical Events (GDELT 2.0 GeoJSON API)
  * Source: GDELT Project — completely free, no auth required
  * Replaces the old RSS scraper with actual GDELT geo-coded events.
  */
@@ -45,7 +45,7 @@ export async function GET() {
       const lng = parseFloat(lngMatch[1]);
       const eventType = typeMatch ? typeMatch[1] : 'UNK';
 
-      // Map GDACS event types to Osiris types
+      // Map GDACS event types to Kammandor Intel types
       let type = 'conflict';
       if (eventType === 'EQ') type = 'earthquake';
       else if (eventType === 'TC') type = 'weather';
@@ -72,7 +72,7 @@ export async function GET() {
       headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
     });
   } catch (error) {
-    console.error('[OSIRIS] GDACS fetch error:', error);
+    console.error('[KINTEL] GDACS fetch error:', error);
     return NextResponse.json({ events: [], total: 0, error: 'GDACS unavailable' }, { status: 500 });
   }
 }
