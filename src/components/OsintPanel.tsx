@@ -10,7 +10,7 @@ import {
   Wifi, Lock, MapPin, Bug, Code, Layers, Network, Fingerprint,
   CheckCircle, XCircle, Clock, ExternalLink, Crosshair,
   Maximize2, Minimize2, Gavel, Bitcoin, Phone, Terminal, ShieldAlert,
-  Building2, BookOpen, IdCard
+  Building2, BookOpen, IdCard, Star
 } from 'lucide-react';
 import { ipToNumber, numberToIp, calculateSubnetStart, classifyDevice, assessRisk, batchFetch, ShodanInternetDBResponse, SweepDevice } from '@/lib/osint-utils';
 import { FLAGS } from '@/config/featureFlags';
@@ -33,6 +33,7 @@ const TABS = [
   { id: 'sweep', label: 'IP SWEEP', icon: Crosshair, placeholder: 'Enter IP address (e.g. 8.8.8.8)', color: '#FF3D3D' },
   { id: 'sec-edgar', label: 'SEC EDGAR', icon: BookOpen, placeholder: 'Company name or keyword', color: '#00C853' },
   { id: 'gleif', label: 'LEI LOOKUP', icon: IdCard, placeholder: 'Legal entity name or LEI code', color: '#D4AF37' },
+  { id: 'reviews', label: 'REVIEWS', icon: Star, placeholder: 'Brand name or App Store ID (e.g. 284882215)', color: '#FF6B35' },
 ];
 
 // Tabs gated behind activeReconEnabled flag
@@ -206,6 +207,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         case 'tech': url = `/api/osint/ip?ip=${encodeURIComponent(query)}`; break;
         case 'sec-edgar': url = `/api/sec-edgar?q=${encodeURIComponent(query)}`; break;
         case 'gleif': url = `/api/gleif?${query.match(/^[A-Z0-9]{20}$/) ? 'lei' : 'name'}=${encodeURIComponent(query)}`; break;
+        case 'reviews': url = `/api/reviews?entity=${encodeURIComponent(query)}`; break;
         case 'shodan': url = `https://internetdb.shodan.io/${encodeURIComponent(query)}`; break;
       }
       const res = await fetch(url, activeTab === 'shodan' ? { cache: 'no-store' } : undefined);
@@ -652,6 +654,63 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
               </a>
             </div>
           ))}
+        </div>
+      );
+    }
+
+    // ── REVIEWS & SENTIMENT ──
+    if (activeTab === 'reviews') {
+      if (!results) return null;
+      const { reviews = [], aggregate = {}, provider = '', _note = '' } = results as any;
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 mb-1">
+            <Star className="w-3.5 h-3.5" style={{ color: '#FF6B35' }} />
+            <span className="hud-text text-[11px] font-bold" style={{ color: '#FF6B35' }}>REVIEWS &amp; SENTIMENT</span>
+            {provider && <span className="gotham-tag gotham-tag--low text-[7px] px-1 uppercase">{provider}</span>}
+          </div>
+          {aggregate?.score > 0 && (
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
+              <span className="text-[10px] font-mono text-[var(--text-muted)]">PROVIDER SCORE</span>
+              <span className="text-[14px] font-mono font-bold" style={{ color: '#FF6B35' }}>{aggregate.score.toFixed(1)}/5</span>
+              <span className="text-[9px] font-mono text-[var(--text-muted)]">({aggregate.count?.toLocaleString()} reviews · {aggregate.platform})</span>
+            </div>
+          )}
+          {_note && (
+            <div className="text-[8px] font-mono text-[var(--text-muted)] italic px-1">
+              {_note}
+            </div>
+          )}
+          {reviews.length === 0 && (
+            <div className="text-[10px] font-mono text-[var(--text-muted)] py-2">No reviews returned. Try an App Store ID (numeric) or brand name with a keyed provider.</div>
+          )}
+          <div className="space-y-1.5 max-h-96 overflow-y-auto pr-1">
+            {reviews.map((r: any, i: number) => (
+              <div key={i} className="p-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-mono font-bold text-[var(--text-primary)]">{r.author}</span>
+                  <div className="flex items-center gap-1">
+                    {[1,2,3,4,5].map(s => (
+                      <Star key={s} className="w-2.5 h-2.5" style={{ color: s <= r.rating ? '#FF6B35' : 'var(--text-muted)', fill: s <= r.rating ? '#FF6B35' : 'transparent' }} />
+                    ))}
+                  </div>
+                </div>
+                <p className="text-[9px] font-mono text-[var(--text-secondary)] leading-relaxed line-clamp-3">{r.text}</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-[8px] font-mono text-[var(--text-muted)]">{r.platform} · {r.date?.slice(0,10)}</span>
+                  {r.url && (
+                    <a href={r.url} target="_blank" rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[8px] font-mono text-[#FF6B35] hover:underline">
+                      <ExternalLink className="w-2.5 h-2.5" /> View
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="text-[7px] font-mono text-[var(--text-muted)] italic px-1 mt-1">
+            Sentiment scoring handled by Kammandor — raw provider data only.
+          </div>
         </div>
       );
     }
