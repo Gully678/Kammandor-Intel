@@ -9,7 +9,8 @@ import {
   ChevronDown, ChevronUp, Loader2, AlertTriangle, Server,
   Wifi, Lock, MapPin, Bug, Code, Layers, Network, Fingerprint,
   CheckCircle, XCircle, Clock, ExternalLink, Crosshair,
-  Maximize2, Minimize2, Gavel, Bitcoin, Phone, Terminal, ShieldAlert
+  Maximize2, Minimize2, Gavel, Bitcoin, Phone, Terminal, ShieldAlert,
+  Building2, BookOpen, IdCard
 } from 'lucide-react';
 import { ipToNumber, numberToIp, calculateSubnetStart, classifyDevice, assessRisk, batchFetch, ShodanInternetDBResponse, SweepDevice } from '@/lib/osint-utils';
 import { FLAGS } from '@/config/featureFlags';
@@ -30,6 +31,8 @@ const TABS = [
   { id: 'leaks', label: 'DATA LEAKS', icon: ShieldAlert, placeholder: 'Email address', color: '#E040FB' },
   { id: 'github', label: 'GITHUB RECON', icon: Terminal, placeholder: 'GitHub username', color: '#87CEEB' },
   { id: 'sweep', label: 'IP SWEEP', icon: Crosshair, placeholder: 'Enter IP address (e.g. 8.8.8.8)', color: '#FF3D3D' },
+  { id: 'sec-edgar', label: 'SEC EDGAR', icon: BookOpen, placeholder: 'Company name or keyword', color: '#00C853' },
+  { id: 'gleif', label: 'LEI LOOKUP', icon: IdCard, placeholder: 'Legal entity name or LEI code', color: '#D4AF37' },
 ];
 
 // Tabs gated behind activeReconEnabled flag
@@ -201,6 +204,8 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         case 'ssl': url = `/api/osint/certs?domain=${encodeURIComponent(query)}`; break;
         case 'subdomains': url = `/api/osint/dns?domain=${encodeURIComponent(query)}&type=subdomains`; break;
         case 'tech': url = `/api/osint/ip?ip=${encodeURIComponent(query)}`; break;
+        case 'sec-edgar': url = `/api/sec-edgar?q=${encodeURIComponent(query)}`; break;
+        case 'gleif': url = `/api/gleif?${query.match(/^[A-Z0-9]{20}$/) ? 'lei' : 'name'}=${encodeURIComponent(query)}`; break;
         case 'shodan': url = `https://internetdb.shodan.io/${encodeURIComponent(query)}`; break;
       }
       const res = await fetch(url, activeTab === 'shodan' ? { cache: 'no-store' } : undefined);
@@ -584,6 +589,72 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
     }
 
 
+
+    // ── SEC EDGAR ──
+    if (activeTab === 'sec-edgar') {
+      const filings: any[] = Array.isArray(r.filings) ? r.filings : [];
+      const total: number = typeof r.total === 'number' ? r.total : filings.length;
+      return (
+        <div>
+          <SectionHeader title="SEC EDGAR FILINGS" icon={BookOpen} color="#00C853" />
+          <ResultRow label="Query" value={r.query || query} color="#00C853" />
+          <ResultRow label="Total Found" value={total > 0 ? String(total) : 'No filings found'} color={total > 0 ? '#00C853' : 'var(--text-muted)'} />
+          {filings.length === 0 && (
+            <div className="text-[10px] font-mono text-[var(--text-muted)] py-2">No filings matched. Try a different company name or keyword.</div>
+          )}
+          {filings.map((f: any, i: number) => (
+            <div key={i} className="mt-2 p-2 rounded border border-[#00C853]/15 bg-[#00C853]/5 space-y-0.5">
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-[11px] font-mono font-bold text-[#00C853] truncate flex-1">{f.company}</span>
+                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#00C853]/20 text-[#00C853] border border-[#00C853]/30 flex-shrink-0">{f.form}</span>
+              </div>
+              {f.filedDate && <div className="text-[9px] font-mono text-[var(--text-muted)]">Filed: {f.filedDate}</div>}
+              {f.title && f.title !== f.form && <div className="text-[9px] font-mono text-[var(--text-secondary)]">{f.title}</div>}
+              {f.cik && <div className="text-[9px] font-mono text-[var(--text-muted)]">File: {f.cik}</div>}
+              {f.url && (
+                <a href={f.url} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-[9px] font-mono text-[#00C853] hover:underline mt-0.5">
+                  <ExternalLink className="w-2.5 h-2.5" /> View on EDGAR
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // ── GLEIF LEI ──
+    if (activeTab === 'gleif') {
+      const entities: any[] = Array.isArray(r.entities) ? r.entities : [];
+      return (
+        <div>
+          <SectionHeader title="GLEIF LEGAL ENTITY LOOKUP" icon={IdCard} color="#D4AF37" />
+          <ResultRow label="Query" value={r.query || query} color="#D4AF37" />
+          <ResultRow label="Matches" value={entities.length > 0 ? String(entities.length) : 'No entities found'} color={entities.length > 0 ? '#D4AF37' : 'var(--text-muted)'} />
+          {entities.length === 0 && (
+            <div className="text-[10px] font-mono text-[var(--text-muted)] py-2">No LEI records matched. Try the full legal name or a 20-character LEI code.</div>
+          )}
+          {entities.map((e: any, i: number) => (
+            <div key={i} className="mt-2 p-2 rounded border border-[#D4AF37]/15 bg-[#D4AF37]/5 space-y-0.5">
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-[11px] font-mono font-bold text-[#D4AF37] flex-1 leading-tight">{e.name}</span>
+                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border flex-shrink-0 ${e.status === 'ACTIVE' ? 'bg-green-500/15 text-green-400 border-green-500/30' : 'bg-red-500/15 text-red-400 border-red-500/30'}`}>
+                  {e.status || 'UNKNOWN'}
+                </span>
+              </div>
+              <div className="text-[9px] font-mono text-[var(--cyan-primary)] tracking-wider">{e.lei}</div>
+              {e.jurisdiction && <ResultRow label="Jurisdiction" value={e.jurisdiction} />}
+              {e.hq?.country && <ResultRow label="HQ" value={[e.hq.city, e.hq.country].filter(Boolean).join(', ')} />}
+              {e.parentLei && <ResultRow label="Parent LEI" value={e.parentLei} />}
+              <a href={`https://search.gleif.org/#/record/${e.lei}`} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[9px] font-mono text-[#D4AF37] hover:underline mt-0.5">
+                <ExternalLink className="w-2.5 h-2.5" /> View on GLEIF
+              </a>
+            </div>
+          ))}
+        </div>
+      );
+    }
 
     // Fallback for other tools
     return renderFallback();
