@@ -45,15 +45,16 @@ export interface ReviewsAdapter {
 
 // ── Provider registry ────────────────────────────────────────────────────────
 
-import { AppStoreRssAdapter }  from './providers/appstore-rss';
-import { TrustpilotAdapter }   from './providers/trustpilot';
-import { G2Adapter }           from './providers/g2';
-import { GooglePlacesAdapter } from './providers/google-places';
-import { YelpAdapter }         from './providers/yelp';
-import { DataForSeoAdapter }   from './providers/aggregators/dataforseo';
-import { OutscraperAdapter }   from './providers/aggregators/outscraper';
-import { SerpApiAdapter }      from './providers/aggregators/serpapi';
-import { ApifyAdapter }        from './providers/aggregators/apify';
+import { AppStoreRssAdapter }       from './providers/appstore-rss';
+import { TrustpilotAdapter }        from './providers/trustpilot';
+import { G2Adapter }                from './providers/g2';
+import { GooglePlacesAdapter }      from './providers/google-places';
+import { YelpAdapter }              from './providers/yelp';
+import { DataForSeoAdapter }        from './providers/aggregators/dataforseo';
+import { BrightDataReviewsAdapter } from './providers/aggregators/brightdata';
+import { OutscraperAdapter }        from './providers/aggregators/outscraper';
+import { SerpApiAdapter }           from './providers/aggregators/serpapi';
+import { ApifyAdapter }             from './providers/aggregators/apify';
 
 /**
  * Resolve the active reviews adapter.
@@ -65,6 +66,7 @@ import { ApifyAdapter }        from './providers/aggregators/apify';
  * 'google-places'      — requires GOOGLE_PLACES_KEY (NO-STORE: Google ToS)
  * 'yelp'               — requires YELP_API_KEY (≤24 h cache)
  * 'dataforseo'         — requires DATAFORSEO_LOGIN + DATAFORSEO_PASSWORD
+ * 'brightdata'         — requires BRIGHTDATA_API_TOKEN + BRIGHTDATA_DS_* dataset IDs
  * 'outscraper'         — requires OUTSCRAPER_KEY
  * 'serpapi'            — requires SERPAPI_KEY
  * 'apify'              — requires APIFY_TOKEN
@@ -77,6 +79,7 @@ export function resolveReviewsAdapter(): ReviewsAdapter {
     case 'google-places': return new GooglePlacesAdapter();
     case 'yelp':          return new YelpAdapter();
     case 'dataforseo':    return new DataForSeoAdapter();
+    case 'brightdata':    return new BrightDataReviewsAdapter();
     case 'outscraper':    return new OutscraperAdapter();
     case 'serpapi':       return new SerpApiAdapter();
     case 'apify':         return new ApifyAdapter();
