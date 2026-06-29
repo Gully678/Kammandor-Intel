@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plane, Satellite, Sun, AlertTriangle, Camera,
   CloudLightning, Ship, Network, Database, Ghost,
-  Flame, Tv, Radio, Mountain, Anchor, Radar
+  Flame, Tv, Radio, Mountain, Anchor, Radar, TrendingDown
 } from 'lucide-react';
 
 interface LayerPanelProps {
@@ -94,6 +94,14 @@ const LAYER_GROUPS = [
     icon: Network,
     layers: [
       { key: 'malware', label: 'Live Malware', dataKey: 'malware_threats' },
+    ],
+  },
+  {
+    label: 'RISK',
+    fullLabel: 'MARKETS & RISK',
+    icon: TrendingDown,
+    layers: [
+      { key: 'world_bank_risk', label: 'Country Risk (WB)', dataKey: 'countries' },
     ],
   },
   {

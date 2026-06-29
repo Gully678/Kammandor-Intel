@@ -162,6 +162,7 @@ export default function Dashboard() {
     sdk_naval: true,
     terrain_3d: false,
     malware: false,
+    world_bank_risk: false,
   });
   const [liveFeedUrl, setLiveFeedUrl] = useState<string | null>(null);
   const [liveFeedName, setLiveFeedName] = useState('');
@@ -473,6 +474,12 @@ export default function Dashboard() {
     if (activeLayers.malware && !layerFetchedRef.current.has('malware')) {
       fetchEndpoint('/api/malware', d => ({ malware_threats: d.threats }));
       layerFetchedRef.current.add('malware');
+    }
+
+    // World Bank Country Risk (WGI Political Stability)
+    if (activeLayers.world_bank_risk && !layerFetchedRef.current.has('world_bank_risk')) {
+      fetchEndpoint('/api/world-bank', d => ({ countries: d.countries }));
+      layerFetchedRef.current.add('world_bank_risk');
     }
 
 

@@ -182,7 +182,7 @@ function IntelMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCli
       createDot(map, 'dot-fire', isGhost ? phantomPurple : '#E65100', 10);
       createDot(map, 'dot-cctv', cameraColor, 10);
 
-      const sources = ['flights','military','jets','private-fl','satellites','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'sdk-entities', 'sdk-links', 'malware-nodes', 'network-mesh'];
+      const sources = ['flights','military','jets','private-fl','satellites','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'sdk-entities', 'sdk-links', 'malware-nodes', 'network-mesh', 'wb-risk'];
       sources.forEach(s => map.addSource(s, { type: 'geojson', data: EMPTY_FC }));
 
       // Warning icon generator (parameterized — eliminates 3x copy-paste)
@@ -278,6 +278,30 @@ function IntelMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCli
         'text-field': ['get','malware'], 'text-size': 8, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-max-width': 10, 'text-allow-overlap': false,
       }, paint: { 'text-color': '#D32F2F', 'text-halo-color': '#111', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+
+      // ── WORLD BANK COUNTRY RISK (PV.EST WGI) ──
+      // value = PV.EST: -2.5 (worst) to +2.5 (best); colour ramps red → amber → teal
+      map.addLayer({ id: 'wb-risk-glow', type: 'circle', source: 'wb-risk', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,10, 4,18],
+        'circle-color': ['interpolate',['linear'],['get','value'], -2.5,'#D32F2F', 0,'#E8A020', 2.5,'#26A69A'],
+        'circle-opacity': 0.12, 'circle-blur': 1,
+      }});
+      map.addLayer({ id: 'wb-risk-dots', type: 'circle', source: 'wb-risk', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,4, 4,7],
+        'circle-color': ['interpolate',['linear'],['get','value'], -2.5,'#D32F2F', 0,'#E8A020', 2.5,'#26A69A'],
+        'circle-opacity': 0.85,
+        'circle-stroke-width': 1,
+        'circle-stroke-color': ['interpolate',['linear'],['get','value'], -2.5,'#D32F2F', 0,'#E8A020', 2.5,'#26A69A'],
+        'circle-stroke-opacity': 0.45,
+      }});
+      map.addLayer({ id: 'wb-risk-label', type: 'symbol', source: 'wb-risk', minzoom: 3, layout: {
+        'text-field': ['concat', ['get','name'], ' (', ['number-format',['get','value'],{'min-fraction-digits':1,'max-fraction-digits':1}], ')'],
+        'text-size': 9, 'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+        'text-anchor': 'top', 'text-offset': [0, 0.7], 'text-optional': true,
+      }, paint: {
+        'text-color': ['interpolate',['linear'],['get','value'], -2.5,'#D32F2F', 0,'#E8A020', 2.5,'#26A69A'],
+        'text-halo-color': '#111', 'text-halo-width': 1.2, 'text-opacity': 0.85,
+      }});
 
       // ── NETWORK INTEL MESH (SDK STYLE) ──
       map.addLayer({ id: 'network-mesh-atmo', type: 'line', source: 'network-mesh', paint: {
@@ -1190,6 +1214,75 @@ function IntelMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCli
     setGeo('gps-jamming', activeLayers.gps_jamming && data.gps_jamming ? data.gps_jamming.map((z: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [z.lng, z.lat] }, properties: { severity: z.severity } })) : []);
   }, [mapReady, data.gps_jamming, activeLayers.gps_jamming, setGeo]);
 
+  // World Bank Country Risk — ISO3 centroid lookup (≈180 countries)
+  // Covers all WB reporting countries; aggregates/regions filtered server-side.
+  const WB_CENTROIDS: Record<string, [number, number]> = {
+    AFG:[69.17,34.52],AGO:[17.87,-11.20],ALB:[20.17,41.15],AND:[1.52,42.51],
+    ARE:[53.85,23.42],ARG:[-63.62,-38.42],ARM:[44.95,40.07],ATG:[-61.80,17.08],
+    AUS:[133.78,-25.27],AUT:[14.55,47.52],AZE:[47.58,40.14],BDI:[29.92,-3.38],
+    BEL:[4.47,50.50],BEN:[2.32,9.31],BFA:[-1.56,12.36],BGD:[90.36,23.68],
+    BGR:[25.49,42.73],BHR:[50.55,26.07],BHS:[-77.40,25.03],BIH:[17.68,44.17],
+    BLR:[27.95,53.71],BLZ:[-88.49,17.19],BOL:[-64.67,-16.29],BRA:[-51.93,-14.24],
+    BRB:[-59.54,13.19],BRN:[114.73,4.54],BTN:[90.43,27.51],BWA:[24.68,-22.33],
+    CAF:[20.94,6.61],CAN:[-96.79,60.11],CHE:[8.23,46.82],CHL:[-71.54,-35.68],
+    CHN:[104.20,35.86],CIV:[-5.55,7.54],CMR:[12.35,3.85],COD:[23.65,-2.88],
+    COG:[15.83,-0.23],COL:[-74.30,4.57],COM:[43.33,-11.64],CPV:[-24.01,15.12],
+    CRI:[-83.75,9.75],CUB:[-79.52,21.52],CYP:[33.43,35.13],CZE:[15.47,49.82],
+    DEU:[10.45,51.17],DJI:[42.59,11.83],DOM:[-70.16,18.74],DZA:[3.00,28.03],
+    ECU:[-78.18,-1.83],EGY:[30.80,26.82],ERI:[38.93,15.18],ESP:[-3.75,40.46],
+    EST:[25.01,58.60],ETH:[40.49,9.15],FIN:[25.75,61.92],FJI:[178.07,-17.71],
+    FRA:[2.21,46.23],GAB:[11.61,-0.80],GBR:[-3.44,55.38],GEO:[43.36,42.32],
+    GHA:[-1.02,7.95],GIN:[-11.81,10.32],GMB:[-15.31,13.44],GNB:[-14.00,11.80],
+    GNQ:[10.27,1.65],GRC:[21.82,39.07],GTM:[-90.23,15.78],GUY:[-58.93,4.86],
+    HND:[-86.24,15.20],HRV:[15.20,45.10],HTI:[-72.29,18.97],HUN:[19.50,47.16],
+    IDN:[113.92,-0.79],IND:[79.00,22.36],IRL:[-8.24,53.41],IRN:[53.69,32.43],
+    IRQ:[43.68,33.22],ISL:[-18.55,64.96],ISR:[34.75,31.05],ITA:[12.57,41.87],
+    JAM:[-77.30,18.11],JOR:[36.24,31.24],JPN:[138.25,36.20],KAZ:[66.92,48.02],
+    KEN:[37.91,-0.02],KGZ:[74.77,41.20],KHM:[104.99,12.57],KIR:[174.49,-0.02],
+    KNA:[-62.78,17.33],KOR:[127.77,35.91],KWT:[47.48,29.31],LAO:[102.50,17.97],
+    LBN:[35.89,33.85],LBR:[-9.43,6.43],LBY:[17.23,26.34],LCA:[-60.97,13.91],
+    LIE:[9.56,47.17],LKA:[80.77,7.87],LSO:[28.23,-29.61],LTU:[23.88,55.17],
+    LUX:[6.13,49.82],LVA:[24.60,56.88],MAR:[-7.09,31.79],MCO:[7.41,43.74],
+    MDA:[28.37,47.41],MDG:[46.87,-18.77],MDV:[73.54,3.20],MEX:[-102.55,23.63],
+    MKD:[21.75,41.61],MLI:[-2.00,17.57],MLT:[14.38,35.94],MMR:[95.96,16.87],
+    MNG:[103.85,46.86],MOZ:[35.53,-18.67],MRT:[-10.94,20.25],MUS:[57.55,-20.29],
+    MWI:[34.30,-13.25],MYS:[109.70,2.69],NAM:[18.49,-22.96],NER:[8.08,17.61],
+    NGA:[8.67,9.08],NIC:[-85.21,12.87],NLD:[5.29,52.13],NOR:[8.47,60.47],
+    NPL:[84.12,28.39],NZL:[172.97,-40.90],OMN:[57.55,21.51],PAK:[69.35,30.38],
+    PAN:[-80.78,8.56],PER:[-75.02,-9.19],PHL:[122.56,12.88],PNG:[143.96,-6.31],
+    POL:[19.15,51.92],PRT:[-8.22,39.40],PRY:[-58.44,-23.44],QAT:[51.18,25.35],
+    ROU:[24.97,45.94],RUS:[105.32,61.52],RWA:[29.87,-1.94],SAU:[45.08,23.89],
+    SDN:[29.87,12.86],SEN:[-14.45,14.50],SLB:[160.16,-9.64],SLE:[-11.78,8.46],
+    SLV:[-88.90,13.79],SOM:[46.20,6.11],SRB:[21.01,44.02],SSD:[31.31,6.88],
+    STP:[6.61,0.19],SUR:[-56.03,3.92],SVK:[19.70,48.67],SVN:[14.96,46.15],
+    SWE:[18.64,60.13],SWZ:[31.50,-26.52],SYC:[55.49,-4.68],SYR:[38.51,34.80],
+    TCD:[18.73,15.45],TGO:[0.82,8.62],THA:[100.99,15.87],TJK:[71.28,38.86],
+    TKM:[59.56,40.55],TLS:[125.73,-8.87],TON:[-175.20,-21.18],TTO:[-61.22,10.69],
+    TUN:[9.54,33.89],TUR:[35.24,38.96],TUV:[-179.20,-7.11],TZA:[34.89,-6.37],
+    UGA:[32.29,1.37],UKR:[31.17,48.38],URY:[-56.02,-32.52],USA:[-95.71,37.09],
+    UZB:[63.95,41.38],VCT:[-61.19,12.98],VEN:[-66.59,6.42],VNM:[105.32,16.16],
+    VUT:[166.96,-15.38],WSM:[-172.34,-13.76],YEM:[47.59,15.55],ZAF:[25.08,-29.00],
+    ZMB:[27.85,-13.13],ZWE:[29.85,-19.02],
+  };
+
+  // World Bank Country Risk data → map points
+  useEffect(() => {
+    if (!mapReady) return;
+    const al = activeLayers as any;
+    if (!al.world_bank_risk || !data.countries?.length) {
+      setGeo('wb-risk', []);
+      return;
+    }
+    const features = (data.countries as any[])
+      .filter(c => WB_CENTROIDS[c.iso3])
+      .map(c => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: WB_CENTROIDS[c.iso3] },
+        properties: { iso3: c.iso3, name: c.name, value: c.value, year: c.year },
+      }));
+    setGeo('wb-risk', features);
+  }, [mapReady, data.countries, (activeLayers as any).world_bank_risk, setGeo]);
+
   useEffect(() => {
     if (!mapReady) return;
     setGeo('cctv', activeLayers.cctv && data.cameras ? data.cameras.map((c: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [c.lng, c.lat] }, properties: { id: c.id, name: c.name, city: c.city, country: c.country, source: c.source, feed_url: c.feed_url, stream_url: c.stream_url, stream_type: c.stream_type, external_url: c.external_url } })) : []);
@@ -1357,6 +1450,7 @@ function IntelMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCli
     setVis(['gdelt-dots'], activeLayers.global_incidents);
 
     setVis(['malware-glow','malware-dots','malware-label'], activeLayers.malware);
+    setVis(['wb-risk-glow','wb-risk-dots','wb-risk-label'], (activeLayers as any).world_bank_risk);
     setVis(['network-mesh-atmo', 'network-mesh-glow', 'network-mesh-core'], activeLayers.internet_outages || activeLayers.malware);
     setVis(['jam-fill','jam-label'], activeLayers.gps_jamming);
     setVis(['day-night-fill'], activeLayers.day_night);
