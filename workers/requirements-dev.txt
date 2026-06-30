@@ -1,0 +1,4 @@
+# Local/CI testing only — NOT installed on Render.
+-r requirements.txt
+pytest
+pytest-asyncio
