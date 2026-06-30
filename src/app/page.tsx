@@ -15,6 +15,7 @@ import ViewPresets from '@/components/ViewPresets';
 import KeyboardShortcuts from '@/components/KeyboardShortcuts';
 import GlobalStatusBar from '@/components/GlobalStatusBar';
 import LiveAlerts from '@/components/LiveAlerts';
+import { buildBrandCss, resolveBrandKey as _resolveBrandKey } from '@/components/BrandThemeScript';
 
 const IntelMap = dynamic(() => import('@/components/IntelMap'), { ssr: false });
 const LayerPanel = dynamic(() => import('@/components/LayerPanel'));
@@ -202,9 +203,24 @@ export default function Dashboard() {
     if (tenant) setTenantContext(tenant);
 
     // theme=kammandor → Kammandor theme (already default; just honour it explicitly)
+    // theme=invrt → apply INVRT brand CSS vars client-side
     const theme = p.get('theme');
-    if (theme === 'kammandor') { /* default ghost theme is the Kammandor theme */ }
+    if (theme === 'kammandor') { /* default; globals.css already sets kammandor vars */ }
     else if (theme === 'core') setAppTheme('core');
+    else if (theme) {
+      // White-label brand switch: inject CSS vars for the resolved brand
+      const brandCss = buildBrandCss(theme);
+      if (brandCss) {
+        const styleId = 'kintel-brand-override';
+        let el = document.getElementById(styleId) as HTMLStyleElement | null;
+        if (!el) {
+          el = document.createElement('style');
+          el.id = styleId;
+          document.head.appendChild(el);
+        }
+        el.textContent = brandCss;
+      }
+    }
 
     // tickers/keywords/entities/handles/focus only apply when tenant is present
     // (full watchlist scoping is a later phase with Supabase RLS)

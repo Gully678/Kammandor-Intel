@@ -1,10 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { BRAND } from '@/config/brand';
+import { getBrand, resolveBrandKey } from '@/config/brands';
+import BrandThemeScript from '@/components/BrandThemeScript';
 import "./globals.css";
 
+// Resolve the active brand at build/request time from env (defaults to kammandor).
+const activeBrand = getBrand(resolveBrandKey(process.env.INTEL_BRAND));
+
 export const viewport: Viewport = {
-  themeColor: BRAND.colors.gold,
+  themeColor: activeBrand.colors.gold,
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -12,12 +16,12 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL(BRAND.url),
+  metadataBase: new URL(activeBrand.url),
   title: {
-    default: `${BRAND.name} — ${BRAND.tagline}`,
-    template: `%s · ${BRAND.name}`,
+    default: `${activeBrand.name} — ${activeBrand.tagline}`,
+    template: `%s · ${activeBrand.name}`,
   },
-  description: BRAND.description,
+  description: activeBrand.description,
   keywords: [
     "investment intelligence", "private capital", "OSINT", "open source intelligence",
     "deal intelligence", "counterparty screening", "sanctions screening",
@@ -26,9 +30,9 @@ export const metadata: Metadata = {
     "risk monitoring", "threat intelligence", "family office",
     "kammandor", "intel.kammandor.com",
   ],
-  authors: [{ name: "Kammandor Intel", url: BRAND.url }],
-  creator: "Kammandor Intel",
-  publisher: "Kammandor Intel",
+  authors: [{ name: activeBrand.name, url: activeBrand.url }],
+  creator: activeBrand.name,
+  publisher: activeBrand.name,
   robots: {
     index: false,
     follow: false,
@@ -42,21 +46,21 @@ export const metadata: Metadata = {
   },
   manifest: "/site.webmanifest",
   alternates: {
-    canonical: BRAND.url,
+    canonical: activeBrand.url,
   },
   openGraph: {
-    title: `${BRAND.name} — ${BRAND.tagline}`,
-    description: BRAND.description,
+    title: `${activeBrand.name} — ${activeBrand.tagline}`,
+    description: activeBrand.description,
     type: "website",
-    siteName: BRAND.name,
+    siteName: activeBrand.name,
     locale: "en_US",
-    url: BRAND.url,
+    url: activeBrand.url,
     images: [
       {
         url: `/og-image.png`,
         width: 1200,
         height: 630,
-        alt: `${BRAND.name} — ${BRAND.tagline}`,
+        alt: `${activeBrand.name} — ${activeBrand.tagline}`,
         type: "image/png",
       },
     ],
@@ -66,9 +70,9 @@ export const metadata: Metadata = {
   other: {
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
-    "apple-mobile-web-app-title": BRAND.short,
+    "apple-mobile-web-app-title": activeBrand.short,
     "mobile-web-app-capable": "yes",
-    "msapplication-TileColor": BRAND.colors.ink,
+    "msapplication-TileColor": activeBrand.colors.ink,
     "msapplication-config": "none",
   },
 };
@@ -77,17 +81,17 @@ export const metadata: Metadata = {
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
-  name: BRAND.name,
-  alternateName: [BRAND.short],
-  url: BRAND.url,
-  description: BRAND.description,
+  name: activeBrand.name,
+  alternateName: [activeBrand.short],
+  url: activeBrand.url,
+  description: activeBrand.description,
   applicationCategory: "FinanceApplication",
   operatingSystem: "Web",
   browserRequirements: "Requires a modern web browser",
   author: {
     "@type": "Organization",
-    name: BRAND.name,
-    url: BRAND.url,
+    name: activeBrand.name,
+    url: activeBrand.url,
   },
 };
 
@@ -99,12 +103,15 @@ export default function RootLayout({
   return (
     <html lang="en" dir="ltr">
       <head>
-        {/* Kammandor fonts loaded via CSS in globals.css */}
+        {/* Brand fonts loaded via CSS in globals.css */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="canonical" href={BRAND.url} />
+        <link rel="canonical" href={activeBrand.url} />
+
+        {/* Inject non-default brand CSS vars if INTEL_BRAND env is set */}
+        <BrandThemeScript />
 
         {/* JSON-LD Structured Data */}
         <script
@@ -113,7 +120,7 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased">
-        <ErrorBoundary name="Kammandor Intel Core">
+        <ErrorBoundary name={`${activeBrand.name} Core`}>
           {children}
         </ErrorBoundary>
       </body>
