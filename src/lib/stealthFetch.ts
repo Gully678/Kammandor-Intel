@@ -104,7 +104,7 @@ export async function stealthFetch(
     init.signal.addEventListener('abort', () => controller.abort());
   }
 
-  const timeoutId = setTimeout(() => controller.abort(new Error('stealthFetch Hard Timeout')), 10000);
+  const timeoutId = setTimeout(() => controller.abort(new Error('stealthFetch Hard Timeout')), 30000);
 
   try {
     const res = await fetch(url, { ...init, headers, signal: controller.signal });
