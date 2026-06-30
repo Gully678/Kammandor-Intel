@@ -61,7 +61,7 @@ const ALLEGIANCE_COLOR_MAP: Record<string, string> = {
   'SUSPECT':  '#FF9500',
   'UNKNOWN':  '#FFD700',
   'NEUTRAL':  '#00BCD4',
-  'FRIENDLY': '#00E676',
+  'FRIENDLY': '#0E9F6E',
 };
 
 // ── Adapter Class ──────────────────────────────────────────────────

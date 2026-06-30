@@ -62,7 +62,7 @@ function getZoomForType(type: string, category: string, boundingbox?: string[]):
 // Icon for result type
 function getResultIcon(type: string, category: string) {
   if (['house', 'building', 'address', 'shop', 'amenity', 'office'].includes(type) || category === 'building') {
-    return <Building2 className="w-3 h-3 text-[var(--cyan-primary)] flex-shrink-0" />;
+    return <Building2 className="w-3 h-3 text-[var(--gold-primary)] flex-shrink-0" />;
   }
   if (['road', 'street', 'highway', 'path'].includes(type) || category === 'highway') {
     return <Navigation className="w-3 h-3 text-[var(--alert-green)] flex-shrink-0" />;

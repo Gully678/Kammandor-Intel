@@ -19,7 +19,7 @@ const RISK_COLORS: Record<string, string> = {
   CRITICAL: '#FF1744',
   ELEVATED: '#FF9500',
   MODERATE: '#FFD700',
-  LOW: '#00E676',
+  LOW: '#0E9F6E',
 };
 
 export default function LiveAlerts({ data, onLocate, onWatchFeed }: LiveAlertsProps) {
@@ -158,7 +158,7 @@ export default function LiveAlerts({ data, onLocate, onWatchFeed }: LiveAlertsPr
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 rounded text-[10px] font-mono tracking-wider transition-all ${filter === f ? 'bg-[var(--cyan-primary)]/20 text-[var(--cyan-primary)] border border-[var(--cyan-primary)]/50' : 'text-[#8A8880] border border-transparent hover:text-[#E8E6E0] hover:bg-[#2A2A28]'}`}
+                  className={`px-3 py-1.5 rounded text-[10px] font-mono tracking-wider transition-all ${filter === f ? 'bg-[var(--gold-primary)]/20 text-[var(--gold-primary)] border border-[var(--gold-primary)]/50' : 'text-[#8A8880] border border-transparent hover:text-[#E8E6E0] hover:bg-[#2A2A28]'}`}
                 >
                   {f.toUpperCase()}
                 </button>
@@ -212,7 +212,7 @@ export default function LiveAlerts({ data, onLocate, onWatchFeed }: LiveAlertsPr
                               href={alert.url} 
                               target="_blank" 
                               rel="noopener noreferrer" 
-                              className="text-[8px] font-mono text-[var(--cyan-primary)] hover:underline"
+                              className="text-[8px] font-mono text-[var(--gold-primary)] hover:underline"
                               onClick={(e) => e.stopPropagation()}
                             >
                               SOURCE

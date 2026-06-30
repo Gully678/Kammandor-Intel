@@ -1,7 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
   <rect width="1200" height="630" fill="#16141C"/>
-  <rect x="1" y="1" width="1198" height="628" rx="0" fill="none" stroke="#E8A020" stroke-width="2" stroke-opacity="0.3"/>
-  <text x="600" y="280" font-family="Georgia, serif" font-size="220" font-weight="bold" fill="#E8A020" text-anchor="middle" opacity="0.9">K</text>
-  <text x="600" y="380" font-family="Arial, sans-serif" font-size="36" font-weight="400" fill="#FAF6EE" text-anchor="middle" letter-spacing="12" opacity="0.8">KAMMANDOR INTEL</text>
-  <text x="600" y="430" font-family="Arial, sans-serif" font-size="18" font-weight="300" fill="#6F665D" text-anchor="middle" letter-spacing="4">Live investment intelligence</text>
+  <rect x="80" y="80" width="1040" height="470" rx="16" fill="#1B1822"/>
+  <path d="M200 400 L400 220 L560 310 L760 140" stroke="#E8A020" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <circle cx="200" cy="400" r="14" fill="#E8A020"/>
+  <circle cx="760" cy="140" r="14" fill="#E8A020"/>
+  <text x="600" y="520" font-family="Georgia, serif" font-size="48" font-weight="bold" fill="#FAF6EE" text-anchor="middle" letter-spacing="12">KAMMANDOR INTEL</text>
+  <text x="600" y="565" font-family="monospace" font-size="18" fill="#9A7B1C" text-anchor="middle" letter-spacing="6">LIVE INVESTMENT INTELLIGENCE</text>
 </svg>

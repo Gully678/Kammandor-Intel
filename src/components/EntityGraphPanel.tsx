@@ -32,7 +32,7 @@ interface GraphData { nodes: EntityNode[]; links: EntityLink[]; }
 // ── PALETTE ──
 
 const TYPE_COLORS: Record<string, string> = {
-  aircraft: '#00E5FF', vessel: '#00BCD4', company: '#D4AF37',
+  aircraft: '#E8A020', vessel: '#0D7D74', company: '#E8A020',
   person: '#B388FF', country: '#76FF03', event: '#FF9500', sanction: '#FF1744',
   ip: '#FF6D00',
 };

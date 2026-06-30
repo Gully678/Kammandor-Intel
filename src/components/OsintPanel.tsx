@@ -25,7 +25,7 @@ const TABS = [
   { id: 'subdomains', label: 'SUBDOMAINS', icon: Layers, placeholder: 'Domain to enumerate', color: '#00BCD4' },
   { id: 'tech', label: 'TECH DETECT', icon: Code, placeholder: 'URL to fingerprint', color: '#9C27B0' },
   { id: 'shodan', label: 'SHODAN IOT', icon: Network, placeholder: 'IP address', color: '#FF3D3D' },
-  { id: 'bgp', label: 'BGP ROUTE', icon: Globe, placeholder: 'IP or ASN', color: '#00E5FF' },
+  { id: 'bgp', label: 'BGP ROUTE', icon: Globe, placeholder: 'IP or ASN', color: '#E8A020' },
   { id: 'mac', label: 'MAC ADDR', icon: Fingerprint, placeholder: 'MAC address', color: '#FFD700' },
   { id: 'phone', label: 'PHONE INTEL', icon: Phone, placeholder: 'Phone number (e.g. +1...)', color: '#FF9500' },
   { id: 'leaks', label: 'DATA LEAKS', icon: ShieldAlert, placeholder: 'Email address', color: '#E040FB' },
@@ -354,7 +354,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
 
   const PortRow = ({ port, state, service, version }: { port: number; state: string; service?: string; version?: string }) => (
     <div className="flex items-center gap-2 py-1 px-2 rounded hover:bg-[var(--hover-accent)] transition-colors">
-      <span className="text-[11px] font-mono font-bold text-[var(--cyan-primary)] w-[60px]">{port}</span>
+      <span className="text-[11px] font-mono font-bold text-[var(--gold-primary)] w-[60px]">{port}</span>
       <StatusBadge ok={state === 'open'} label={state.toUpperCase()} />
       <span className="text-[10px] font-mono text-[var(--text-secondary)] flex-1">{service || 'unknown'}</span>
       {version && <span className="text-[9px] font-mono text-[var(--text-muted)]">{version}</span>}
@@ -408,7 +408,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
           <SectionHeader title="SHODAN IOT INTELLIGENCE" icon={Network} color="#FF3D3D" />
           <ResultRow label="Target IP" value={r.ip || query} color="#FF3D3D" />
           {r.hostnames?.length > 0 && <ResultRow label="Hostnames" value={r.hostnames.join(', ')} />}
-          {r.ports?.length > 0 && <ResultRow label="Open Ports" value={r.ports.join(', ')} color="#00E5FF" />}
+          {r.ports?.length > 0 && <ResultRow label="Open Ports" value={r.ports.join(', ')} color="#E8A020" />}
           {r.tags?.length > 0 && <ResultRow label="Tags" value={r.tags.join(', ')} color="#FF9500" />}
           {r.vulns?.length > 0 && (
             <div className="mt-2 p-2 border border-red-500/30 bg-red-500/10 rounded">
@@ -430,13 +430,13 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
     if (activeTab === 'bgp') {
       return (
         <div>
-          <SectionHeader title="BGP ROUTING INTELLIGENCE" icon={Globe} color="#00E5FF" />
-          <ResultRow label="Query" value={r.query} color="#00E5FF" />
+          <SectionHeader title="BGP ROUTING INTELLIGENCE" icon={Globe} color="#E8A020" />
+          <ResultRow label="Query" value={r.query} color="#E8A020" />
           {r.type === 'ip' && r.ip && (
             <>
               {r.ip.prefixes?.map((p: any, i: number) => (
-                <div key={i} className="mt-2 p-2 border border-[#00E5FF]/20 bg-[#00E5FF]/5 rounded">
-                  <ResultRow label="ASN" value={`AS${p.asn.asn} - ${p.asn.name}`} color="#00E5FF" />
+                <div key={i} className="mt-2 p-2 border border-[var(--gold-primary)]/20 bg-[var(--gold-primary)]/5 rounded">
+                  <ResultRow label="ASN" value={`AS${p.asn.asn} - ${p.asn.name}`} color="#E8A020" />
                   <ResultRow label="Prefix" value={p.prefix} />
                   <ResultRow label="Country" value={p.asn.country_code} />
                   <ResultRow label="Description" value={p.asn.description} />
@@ -445,8 +445,8 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
             </>
           )}
           {r.type === 'asn' && r.asn && (
-            <div className="mt-2 p-2 border border-[#00E5FF]/20 bg-[#00E5FF]/5 rounded">
-              <ResultRow label="ASN" value={`AS${r.asn.asn}`} color="#00E5FF" />
+            <div className="mt-2 p-2 border border-[var(--gold-primary)]/20 bg-[var(--gold-primary)]/5 rounded">
+              <ResultRow label="ASN" value={`AS${r.asn.asn}`} color="#E8A020" />
               <ResultRow label="Name" value={r.asn.name} />
               <ResultRow label="Description" value={r.asn.description} />
               <ResultRow label="Country" value={r.asn.country_code} />
@@ -465,7 +465,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         <div>
           <SectionHeader title="MAC VENDOR LOOKUP" icon={Fingerprint} color="#FFD700" />
           <ResultRow label="MAC Address" value={r.mac} color="#FFD700" />
-          <ResultRow label="Vendor" value={r.vendor} color={r.vendor === 'Not Found' ? '#FF3D3D' : '#00E676'} />
+          <ResultRow label="Vendor" value={r.vendor} color={r.vendor === 'Not Found' ? '#FF3D3D' : '#0E9F6E'} />
         </div>
       );
     }
@@ -476,14 +476,14 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         <div>
           <SectionHeader title="PHONE INTELLIGENCE" icon={Phone} color="#FF9500" />
           <ResultRow label="Query" value={r.query} color="#FF9500" />
-          <ResultRow label="Valid" value={r.valid ? 'YES' : 'NO'} color={r.valid ? '#00E676' : '#FF3D3D'} />
+          <ResultRow label="Valid" value={r.valid ? 'YES' : 'NO'} color={r.valid ? '#0E9F6E' : '#FF3D3D'} />
           {r.valid && (
             <>
               <ResultRow label="E.164 Format" value={r.number} />
               <ResultRow label="Intl Format" value={r.international} />
               <ResultRow label="Nat Format" value={r.national} />
               <ResultRow label="Country" value={`${r.region} (${r.country_code})`} />
-              <ResultRow label="Line Type" value={r.line_type} color={r.line_type === 'MOBILE' ? '#00E5FF' : r.line_type === 'VOIP' ? '#FF9500' : undefined} />
+              <ResultRow label="Line Type" value={r.line_type} color={r.line_type === 'MOBILE' ? '#E8A020' : r.line_type === 'VOIP' ? '#FF9500' : undefined} />
             </>
           )}
         </div>
@@ -504,7 +504,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
           </div>
           <ResultRow label="Company" value={r.company} />
           <ResultRow label="Location" value={r.location} />
-          <ResultRow label="Email" value={r.email} color="#00E676" />
+          <ResultRow label="Email" value={r.email} color="#0E9F6E" />
           <ResultRow label="Twitter" value={r.twitter} color="#448AFF" />
           <ResultRow label="Website" value={r.blog} />
           <ResultRow label="Bio" value={r.bio} />
@@ -529,7 +529,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         <div>
           <SectionHeader title="DATA LEAK SWEEP" icon={ShieldAlert} color="#E040FB" />
           <ResultRow label="Email Target" value={r.email} color="#E040FB" />
-          <ResultRow label="Status" value={r.breached ? 'COMPROMISED' : 'SECURE'} color={r.breached ? '#FF1744' : '#00E676'} />
+          <ResultRow label="Status" value={r.breached ? 'COMPROMISED' : 'SECURE'} color={r.breached ? '#FF1744' : '#0E9F6E'} />
           
           {r.breached && r.data_exposed?.length > 0 && (
             <div className="mt-2 p-2 border border-[#E040FB]/30 bg-[#E040FB]/10 rounded">
@@ -587,9 +587,9 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
           <SectionHeader title="THREAT INTELLIGENCE" icon={AlertTriangle} color="#FF9500" />
           <ResultRow label="Query" value={query} color="#FF9500" />
           <ResultRow label="Risk Score" value={r.risk_score || r.score} color={
-            (r.risk_score || r.score || 0) > 70 ? '#FF3D3D' : (r.risk_score || r.score || 0) > 40 ? '#FF9500' : '#00E676'
+            (r.risk_score || r.score || 0) > 70 ? '#FF3D3D' : (r.risk_score || r.score || 0) > 40 ? '#FF9500' : '#0E9F6E'
           } />
-          <ResultRow label="Malicious" value={r.malicious !== undefined ? (r.malicious ? 'YES' : 'NO') : undefined} color={r.malicious ? '#FF3D3D' : '#00E676'} />
+          <ResultRow label="Malicious" value={r.malicious !== undefined ? (r.malicious ? 'YES' : 'NO') : undefined} color={r.malicious ? '#FF3D3D' : '#0E9F6E'} />
           <ResultRow label="Category" value={r.category || r.type} />
           <ResultRow label="Reports" value={r.total_reports || r.reports} />
           <ResultRow label="Last Seen" value={r.last_seen || r.last_analysis} />
@@ -607,7 +607,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
           <ResultRow label="Target" value={query} color="#76FF03" />
           <ResultRow label="Protocol" value={r.protocol || r.tls_version} />
           <ResultRow label="Cipher" value={r.cipher || r.cipher_suite} />
-          <ResultRow label="Valid" value={r.valid !== undefined ? (r.valid ? 'YES' : 'NO') : undefined} color={r.valid ? '#00E676' : '#FF3D3D'} />
+          <ResultRow label="Valid" value={r.valid !== undefined ? (r.valid ? 'YES' : 'NO') : undefined} color={r.valid ? '#0E9F6E' : '#FF3D3D'} />
           <ResultRow label="Issuer" value={r.issuer} />
           <ResultRow label="Subject" value={r.subject} />
           <ResultRow label="Expires" value={r.expires || r.not_after} />
@@ -671,7 +671,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
                   {e.status || 'UNKNOWN'}
                 </span>
               </div>
-              <div className="text-[9px] font-mono text-[var(--cyan-primary)] tracking-wider">{e.lei}</div>
+              <div className="text-[9px] font-mono text-[var(--gold-primary)] tracking-wider">{e.lei}</div>
               {e.jurisdiction && <ResultRow label="Jurisdiction" value={e.jurisdiction} />}
               {e.hq?.country && <ResultRow label="HQ" value={[e.hq.city, e.hq.country].filter(Boolean).join(', ')} />}
               {e.parentLei && <ResultRow label="Parent LEI" value={e.parentLei} />}
@@ -1053,8 +1053,8 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
             style={{ borderColor: 'rgba(0, 230, 118, 0.2)' }}
           >
             <div className="flex items-center gap-3">
-              <LocateFixed className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} style={{ color: '#00E676' }} />
-              <span className="font-mono font-bold tracking-[0.1em] text-[11px]" style={{ color: '#00E676' }}>{loading ? 'TRACKING...' : 'SELF TRACK'}</span>
+              <LocateFixed className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} style={{ color: '#0E9F6E' }} />
+              <span className="font-mono font-bold tracking-[0.1em] text-[11px]" style={{ color: '#0E9F6E' }}>{loading ? 'TRACKING...' : 'SELF TRACK'}</span>
             </div>
           </button>
         </div>
@@ -1246,7 +1246,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
                         <div className="text-[10px] font-mono text-[#5C5A54] tracking-widest uppercase mb-2">Open Ports</div>
                         <div className="flex flex-wrap gap-1.5">
                           {device.ports.map((port: number) => (
-                            <span key={port} className="px-2 py-1 bg-[#1A1A18] border border-[#2A2A28] rounded text-[11px] font-mono text-[var(--cyan-primary)]">{port}</span>
+                            <span key={port} className="px-2 py-1 bg-[#1A1A18] border border-[#2A2A28] rounded text-[11px] font-mono text-[var(--gold-primary)]">{port}</span>
                           ))}
                         </div>
                       </div>
@@ -1365,10 +1365,10 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
 
   if (isFullScreen) {
     const fullScreenNode = (
-      <div className="fixed top-4 bottom-4 right-4 w-[40vw] min-w-[600px] max-w-[800px] z-[999] glass-panel bg-[#0a0a09]/95 backdrop-blur-2xl border border-[var(--cyan-primary)]/40 rounded-xl flex flex-col overflow-hidden shadow-2xl shadow-[var(--cyan-primary)]/20 transition-all duration-300">
+      <div className="fixed top-4 bottom-4 right-4 w-[40vw] min-w-[600px] max-w-[800px] z-[999] glass-panel bg-[#0a0a09]/95 backdrop-blur-2xl border border-[var(--gold-primary)]/40 rounded-xl flex flex-col overflow-hidden shadow-2xl shadow-[var(--gold-primary)]/10 transition-all duration-300">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-secondary)] bg-[#111]">
           <div className="flex items-center gap-3">
-            <Radar className="w-5 h-5 text-[var(--cyan-primary)]" />
+            <Radar className="w-5 h-5 text-[var(--gold-primary)]" />
             <span className="hud-text text-[16px] text-[var(--text-primary)]">Organisation &amp; Asset Intelligence</span>
             <span className="gotham-tag gotham-tag--info" style={{ fontSize: '9px' }}>EXPANDED VIEW</span>
             <span className="gotham-tag gotham-tag--classified" style={{ fontSize: '8px' }}>{TABS.length} MODULES</span>
@@ -1391,7 +1391,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3, duration: 0.6 }} className="glass-panel flex flex-col overflow-hidden pointer-events-auto shrink-0 h-[500px] max-h-[80vh] resize-y">
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-[rgba(255,255,255,0.05)] bg-[rgba(0,0,0,0.3)] hover:bg-[var(--hover-accent)] transition-colors">
         <button onClick={() => setExpanded(!expanded)} className="flex items-center gap-2 flex-1">
-          <Radar className="w-3.5 h-3.5 text-[var(--cyan-primary)]" />
+          <Radar className="w-3.5 h-3.5 text-[var(--gold-primary)]" />
           <span className="hud-text text-[12px] text-[var(--text-primary)]">Organisation &amp; Asset Intelligence</span>
           <span className="gotham-tag gotham-tag--info" style={{ fontSize: '7px', padding: '1px 5px' }}>INTEL TOOLS</span>
         </button>
@@ -1399,7 +1399,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
           <button onClick={() => setIsFullScreen(true)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors" title="Full Screen">
              <Maximize2 className="w-3.5 h-3.5" />
           </button>
-          <div className="w-1.5 h-1.5 rounded-full bg-[var(--cyan-primary)] animate-kintel-pulse" />
+          <div className="w-1.5 h-1.5 rounded-full bg-[var(--live)] animate-kintel-pulse" />
           <button onClick={() => setExpanded(!expanded)}>
             {expanded ? <ChevronUp className="w-3.5 h-3.5 text-[var(--text-muted)]" /> : <ChevronDown className="w-3.5 h-3.5 text-[var(--text-muted)]" />}
           </button>

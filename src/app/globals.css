@@ -138,8 +138,8 @@ body.theme-ghost {
 @theme inline {
   --color-background: var(--bg-void);
   --color-foreground: var(--text-primary);
-  --font-sans: var(--font-body);
-  --font-mono: var(--font-hud);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 }
 
 /* ── Base ── */
@@ -584,7 +584,7 @@ html, body {
 
 .pulse-ring--cyan::before,
 .pulse-ring--cyan::after {
-  border-color: var(--cyan-primary);
+  border-color: var(--gold-primary);
 }
 
 .pulse-ring--alert::before,
@@ -621,9 +621,9 @@ html, body {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    var(--cyan-glow) 15%,
-    var(--cyan-primary) 50%,
-    var(--cyan-glow) 85%,
+    var(--gold-glow) 15%,
+    var(--gold-primary) 50%,
+    var(--gold-glow) 85%,
     transparent 100%
   );
   box-shadow:
@@ -670,10 +670,10 @@ html, body {
 }
 
 .stat-value-glow--cyan {
-  color: var(--cyan-primary);
+  color: var(--gold-primary);
   text-shadow:
-    0 0 8px var(--cyan-glow),
-    0 0 20px rgba(var(--cyan-rgb), 0.15);
+    0 0 8px var(--gold-glow),
+    0 0 20px rgba(var(--gold-rgb), 0.15);
 }
 
 .stat-value-glow--cyan:hover {
@@ -1008,10 +1008,10 @@ html, body {
 .intel-progress--cyan .intel-progress__bar {
   background: linear-gradient(
     90deg,
-    var(--cyan-dim) 0%,
-    var(--cyan-primary) 100%
+    var(--gold-dim) 0%,
+    var(--gold-primary) 100%
   );
-  box-shadow: 0 0 12px var(--cyan-glow);
+  box-shadow: 0 0 12px var(--gold-glow);
 }
 
 /* Indeterminate / loading state */
@@ -1094,16 +1094,16 @@ html, body {
 }
 
 .layer-toggle-premium--cyan.active {
-  background: rgba(var(--cyan-rgb), 0.15);
-  border-color: var(--cyan-primary);
-  box-shadow: 0 0 16px rgba(var(--cyan-rgb), 0.12);
+  background: rgba(var(--gold-rgb), 0.15);
+  border-color: var(--gold-primary);
+  box-shadow: 0 0 16px rgba(var(--gold-rgb), 0.12);
 }
 
 .layer-toggle-premium--cyan.active::after {
-  background: var(--cyan-primary);
+  background: var(--gold-primary);
   box-shadow:
-    0 0 10px rgba(var(--cyan-rgb), 0.6),
-    0 0 25px rgba(var(--cyan-rgb), 0.2);
+    0 0 10px rgba(var(--gold-rgb), 0.6),
+    0 0 25px rgba(var(--gold-rgb), 0.2);
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -1153,12 +1153,12 @@ html, body {
 }
 
 .notification-pulse--cyan {
-  background: var(--cyan-primary);
-  box-shadow: 0 0 6px var(--cyan-glow);
+  background: var(--gold-primary);
+  box-shadow: 0 0 6px var(--gold-glow);
 }
 
 .notification-pulse--cyan::before {
-  background: var(--cyan-primary);
+  background: var(--gold-primary);
 }
 
 /* With count badge */
@@ -1339,7 +1339,7 @@ html, body {
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent 0%, var(--gold-primary) 30%, var(--cyan-primary) 70%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, var(--gold-deep) 30%, var(--gold-primary) 70%, transparent 100%);
   box-shadow: 0 0 20px var(--gold-primary), 0 0 60px rgba(var(--gold-rgb),0.3);
   animation: splash-scanline 2.5s ease-in-out;
   pointer-events: none;
@@ -1348,7 +1348,7 @@ html, body {
 
 .splash-progress-bar {
   height: 2px;
-  background: linear-gradient(90deg, transparent, var(--gold-primary), var(--cyan-primary), var(--gold-primary), transparent);
+  background: linear-gradient(90deg, transparent, var(--gold-deep), var(--gold-primary), var(--gold-light), transparent);
   background-size: 200% 100%;
   animation: splash-progress-sweep 1.5s linear infinite;
 }
@@ -1408,7 +1408,7 @@ html, body {
 .gotham-tag--high { background: rgba(255,149,0,0.12); color: #FF9500; border-color: rgba(255,149,0,0.3); }
 .gotham-tag--medium { background: rgba(var(--gold-rgb),0.12); color: #D4AF37; border-color: rgba(var(--gold-rgb),0.3); }
 .gotham-tag--low { background: rgba(0,230,118,0.12); color: #00E676; border-color: rgba(0,230,118,0.3); }
-.gotham-tag--info { background: rgba(var(--cyan-rgb),0.08); color: var(--cyan-primary); border-color: rgba(var(--cyan-rgb),0.2); }
+.gotham-tag--info { background: rgba(var(--gold-rgb),0.08); color: var(--gold-primary); border-color: rgba(var(--gold-rgb),0.2); }
 .gotham-tag--classified { background: rgba(var(--gold-rgb),0.08); color: var(--gold-primary); border-color: rgba(var(--gold-rgb),0.25); letter-spacing: 0.2em; }
 
 /* ── Gotham Section Divider ── */
@@ -1608,11 +1608,11 @@ html, body {
 }
 
 .gotham-card--cyan:hover {
-  border-left-color: var(--cyan-primary);
+  border-left-color: var(--gold-primary);
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.5),
-    0 0 24px rgba(var(--cyan-rgb), 0.05),
-    0 1px 0 rgba(var(--cyan-rgb), 0.06) inset;
+    0 0 24px rgba(var(--gold-rgb), 0.05),
+    0 1px 0 rgba(var(--gold-rgb), 0.06) inset;
 }
 
 /* Variant: Alert accent for critical items */
@@ -1689,10 +1689,10 @@ html, body {
 }
 
 .gotham-stat__value--cyan {
-  color: var(--cyan-primary);
+  color: var(--gold-primary);
   text-shadow:
-    0 0 10px rgba(var(--cyan-rgb), 0.2),
-    0 0 30px rgba(var(--cyan-rgb), 0.08);
+    0 0 10px rgba(var(--gold-rgb), 0.2),
+    0 0 30px rgba(var(--gold-rgb), 0.08);
 }
 
 .gotham-stat__value--alert {
@@ -1961,13 +1961,13 @@ html, body {
 
 /* Variant: Cyan for data streams */
 .gotham-pulse-ring--cyan::before {
-  background: var(--cyan-primary);
-  box-shadow: 0 0 6px var(--cyan-glow);
+  background: var(--gold-primary);
+  box-shadow: 0 0 6px var(--gold-glow);
 }
 
 .gotham-pulse-ring--cyan::after,
 .gotham-pulse-ring--cyan .gotham-pulse-ring__ring {
-  border-color: var(--cyan-primary);
+  border-color: var(--gold-primary);
 }
 
 /* Variant: Alert (red) for critical status */
@@ -2164,9 +2164,9 @@ html, body {
 
 /* Variant: Cyan — info / data */
 .gotham-badge--cyan {
-  color: var(--cyan-primary);
-  background: rgba(var(--cyan-rgb), 0.06);
-  border-color: rgba(var(--cyan-rgb), 0.15);
+  color: var(--gold-primary);
+  background: rgba(var(--gold-rgb), 0.06);
+  border-color: rgba(var(--gold-rgb), 0.15);
 }
 
 /* Variant: Green — operational / live */

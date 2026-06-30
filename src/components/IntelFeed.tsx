@@ -113,7 +113,7 @@ export default function IntelFeed({ data, onLocate }: IntelFeedProps) {
                             e.stopPropagation();
                             onLocate?.(item.coords[0], item.coords[1]);
                           }}
-                          className="text-[var(--text-muted)] hover:text-[var(--cyan-primary)] transition-colors"
+                          className="text-[var(--text-muted)] hover:text-[var(--gold-primary)] transition-colors"
                         >
                           <MapPin className="w-2.5 h-2.5" />
                         </button>
@@ -151,7 +151,7 @@ export default function IntelFeed({ data, onLocate }: IntelFeedProps) {
                             href={item.link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-[10px] font-mono text-[var(--cyan-primary)] hover:underline"
+                            className="flex items-center gap-1 text-[10px] font-mono text-[var(--gold-primary)] hover:underline"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <ExternalLink className="w-2.5 h-2.5" />

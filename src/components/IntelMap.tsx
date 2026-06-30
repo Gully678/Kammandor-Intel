@@ -163,8 +163,8 @@ function IntelMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCli
       const isGhost = theme === 'ghost';
       const phantomPurple = '#B388FF';
       const phantomDark = '#1A0040';
-      const cameraColor = isGhost ? '#B388FF' : '#00E676';
-      const flightCom = isGhost ? phantomPurple : '#00E5FF';
+      const cameraColor = isGhost ? '#B388FF' : '#0E9F6E';
+      const flightCom = isGhost ? phantomPurple : '#C47D0E';
       const flightPriv = isGhost ? phantomPurple : '#FFD700';
       const flightGov = isGhost ? phantomPurple : '#FF9500';
       const flightMil = isGhost ? phantomPurple : '#FF3D3D';
@@ -629,7 +629,7 @@ function IntelMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCli
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px;">
             <div><span style="color:#5C5A54;font-size:9px;">MODEL</span><br/><span style="color:#E8E6E0;">${htmlEsc(p.model||'—')}</span></div>
-            <div><span style="color:#5C5A54;font-size:9px;">ALT</span><br/><span style="color:#00E5FF;">${p.alt?Math.round(p.alt)+'m':'—'}</span></div>
+            <div><span style="color:#5C5A54;font-size:9px;">ALT</span><br/><span style="color:#E8A020;">${p.alt?Math.round(p.alt)+'m':'—'}</span></div>
             <div><span style="color:#5C5A54;font-size:9px;">SPEED</span><br/><span style="color:#E8E6E0;">${p.speed_knots||'—'}kt</span></div>
             <div><span style="color:#5C5A54;font-size:9px;">HDG</span><br/><span style="color:#E8E6E0;">${Math.round(p.heading||0)}°</span></div>
             <div><span style="color:#5C5A54;font-size:9px;">REG</span><br/><span style="color:#E8E6E0;">${htmlEsc(p.registration||'—')}</span></div>
@@ -637,7 +637,7 @@ function IntelMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCli
           </div>
           <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;">
             <a href="https://www.flightaware.com/live/flight/${encodeURIComponent(cs)}" target="_blank" style="${linkStyle}color:#D4AF37;border:1px solid rgba(212,175,55,0.4);background:rgba(212,175,55,0.1);">⚡ FLIGHTAWARE</a>
-            <a href="https://globe.adsbexchange.com/?icao=${encodeURIComponent(p.icao24||'')}" target="_blank" style="${linkStyle}color:#00E5FF;border:1px solid rgba(0,229,255,0.4);background:rgba(0,229,255,0.1);">📡 ADS-B</a>
+            <a href="https://globe.adsbexchange.com/?icao=${encodeURIComponent(p.icao24||'')}" target="_blank" style="${linkStyle}color:#E8A020;border:1px solid rgba(232,160,32,0.4);background:rgba(232,160,32,0.1);">📡 ADS-B</a>
             <a href="https://www.radarbox.com/data/flights/${encodeURIComponent(cs)}" target="_blank" style="${linkStyle}color:#FF69B4;border:1px solid rgba(255,105,180,0.4);background:rgba(255,105,180,0.1);">📍 RADARBOX</a>
           </div>
           <button onclick="window.openKintelIntel({ callsign: '${idSafe(cs)}', icao24: '${idSafe(p.icao24||'')}', model: '${idSafe(p.model||'')}', registration: '${idSafe(p.registration||'')}' })" style="width:100%;margin-top:8px;padding:6px 12px;background:rgba(212,175,55,0.15);border:1px solid rgba(212,175,55,0.5);color:#D4AF37;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ DEEP DIVE INTEL ]</button>
@@ -696,10 +696,10 @@ function IntelMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCli
         <div style="color:#D4AF37;font-size:12px;font-weight:700;letter-spacing:0.1em;margin-bottom:4px;">🛰️ ${htmlEsc(p.name)}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;font-size:9px;margin-bottom:8px;">
           <div><span style="color:#5C5A54;">MISSION</span><br/><span style="color:${colorSafe(p.color)};">${htmlEsc(p.mission||'Unknown')}</span></div>
-          <div><span style="color:#5C5A54;">ALT</span><br/><span style="color:#00E5FF;">${p.alt ? p.alt+' km' : '—'}</span></div>
+          <div><span style="color:#5C5A54;">ALT</span><br/><span style="color:#E8A020;">${p.alt ? p.alt+' km' : '—'}</span></div>
           <div><span style="color:#5C5A54;">POS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>
         </div>
-        ${p.noradId ? `<a href="https://www.n2yo.com/satellite/?s=${p.noradId}" target="_blank" style="display:block;text-align:center;padding:4px;margin-top:6px;font-size:8px;font-family:monospace;letter-spacing:0.1em;text-decoration:none;color:#00E5FF;border:1px solid rgba(0,229,255,0.4);background:rgba(0,229,255,0.1);border-radius:2px;cursor:pointer;">📡 TRACK ON N2YO</a>` : ''}
+        ${p.noradId ? `<a href="https://www.n2yo.com/satellite/?s=${p.noradId}" target="_blank" style="display:block;text-align:center;padding:4px;margin-top:6px;font-size:8px;font-family:monospace;letter-spacing:0.1em;text-decoration:none;color:#E8A020;border:1px solid rgba(232,160,32,0.4);background:rgba(232,160,32,0.1);border-radius:2px;cursor:pointer;">📡 TRACK ON N2YO</a>` : ''}
       </div>`);
     });
 
@@ -724,7 +724,7 @@ function IntelMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCli
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
       const tType = (p.threat_type || 'MALWARE').toUpperCase();
-      const statusColor = p.status === 'online' ? '#39FF14' : '#FF1744';
+      const statusColor = p.status === 'online' ? '#0E9F6E' : '#FF1744';
       
       popup(coords, `<div style="${pStyle}border:1px solid rgba(255,23,68,0.4);box-shadow:inset 0 0 12px rgba(255,23,68,0.1);">
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,23,68,0.3);padding-bottom:6px;margin-bottom:8px;">
@@ -733,7 +733,7 @@ function IntelMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCli
         </div>
         <div style="color:#E8E6E0;font-size:11px;font-weight:bold;margin-bottom:10px;">${htmlEsc(p.malware || 'Unidentified Threat Payload')}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
-          <div><span style="color:#5C5A54;">TARGET IP</span><br/><span style="color:#00E5FF;font-family:monospace;">${htmlEsc(p.ip)}</span></div>
+          <div><span style="color:#5C5A54;">TARGET IP</span><br/><span style="color:#E8A020;font-family:monospace;">${htmlEsc(p.ip)}</span></div>
           <div><span style="color:#5C5A54;">STATUS</span><br/><span style="color:${statusColor};">${(p.status||'UNKNOWN').toUpperCase()}</span></div>
         </div>
         <div style="display:flex;gap:6px;">
@@ -837,7 +837,7 @@ function IntelMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCli
         <div style="color:#FF3D3D;font-size:12px;font-weight:700;margin-bottom:6px;">🎯 TARGET: ${htmlEsc(p.id)}</div>
         <div style="font-size:9px;color:#E8E6E0;margin-bottom:8px;">${htmlEsc(p.city || 'Unknown')}, ${htmlEsc(p.country || 'Unknown')} — ${htmlEsc(p.isp || 'Unknown ISP')}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;">
-          <div><span style="color:#5C5A54;">TYPE</span><br/><span style="color:#00E5FF;">${(p.type || 'UNKNOWN').toUpperCase()}</span></div>
+          <div><span style="color:#5C5A54;">TYPE</span><br/><span style="color:#E8A020;">${(p.type || 'UNKNOWN').toUpperCase()}</span></div>
           <div><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
         </div>
         <button onclick="window.openKintelIntel({ type: 'ip', ip: '${idSafe(p.id)}' })" style="width:100%;margin-top:8px;padding:6px 12px;background:rgba(255,109,0,0.15);border:1px solid rgba(255,109,0,0.5);color:#FF6D00;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ IP INTEL DEEP DIVE ]</button>
@@ -903,7 +903,7 @@ function IntelMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCli
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;">
           <div><span style="color:#5C5A54;">ALTITUDE</span><br/><span style="color:#E8E6E0;">${p.altitude} m</span></div>
           <div><span style="color:#5C5A54;">SPEED</span><br/><span style="color:#E8E6E0;">${Math.round(p.speed)} km/h</span></div>
-          <div><span style="color:#5C5A54;">VERT RATE</span><br/><span style="color:${p.verticalRate > 0 ? '#00E676' : '#FF3D3D'};">${p.verticalRate.toFixed(1)} m/s</span></div>
+          <div><span style="color:#5C5A54;">VERT RATE</span><br/><span style="color:${p.verticalRate > 0 ? '#0E9F6E' : '#FF3D3D'};">${p.verticalRate.toFixed(1)} m/s</span></div>
           <div><span style="color:#5C5A54;">TEMP</span><br/><span style="color:#E8E6E0;">${p.temperature}°C</span></div>
         </div>
       </div>`);
@@ -931,7 +931,7 @@ function IntelMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCli
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
-      const color = p.type === 'military' ? '#FF1744' : p.type === 'tanker' ? '#FF9500' : '#00E5FF';
+      const color = p.type === 'military' ? '#FF1744' : p.type === 'tanker' ? '#FF9500' : '#E8A020';
       const icon = p.type === 'military' ? '⚔️' : p.type === 'tanker' ? '🛢️' : '🚢';
       
       popup(coords, `<div style="${pStyle}border:1px solid ${color}60;box-shadow:inset 0 0 12px ${color}15;">
@@ -1002,7 +1002,7 @@ function IntelMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCli
       const congestionHtml = p.congestion ? `
         <div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-            <div><span style="color:#5C5A54;font-size:9px;">CONGESTION</span><br/><span style="color:${p.congestion === 'SEVERE' ? '#FF1744' : p.congestion === 'CONGESTED' ? '#FF9500' : '#00E676'};font-weight:bold;font-size:10px;">${p.congestion}</span></div>
+            <div><span style="color:#5C5A54;font-size:9px;">CONGESTION</span><br/><span style="color:${p.congestion === 'SEVERE' ? '#FF1744' : p.congestion === 'CONGESTED' ? '#FF9500' : '#0E9F6E'};font-weight:bold;font-size:10px;">${p.congestion}</span></div>
             <div><span style="color:#5C5A54;font-size:9px;">EST. DWELL TIME</span><br/><span style="color:#E8E6E0;font-weight:bold;font-size:10px;">${p.dwell_time || 'Unknown'}</span></div>
           </div>
         </div>` : '';
@@ -1022,7 +1022,7 @@ function IntelMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCli
       const p = e.features?.[0]?.properties;
       if (!p) return;
       const coords = (e.features![0].geometry as any).coordinates;
-      const riskCol = p.risk === 'CRITICAL' ? '#FF1744' : p.risk === 'HIGH' ? '#FF9500' : p.risk === 'ELEVATED' ? '#FFD700' : '#00E676';
+      const riskCol = p.risk === 'CRITICAL' ? '#FF1744' : p.risk === 'HIGH' ? '#FF9500' : p.risk === 'ELEVATED' ? '#FFD700' : '#0E9F6E';
       popup(coords, `<div style="${pStyle}border:1px solid ${riskCol}40;">
         <div style="color:#FF9500;font-weight:bold;font-size:11px;margin-bottom:4px;">${p.name}</div>
         <div style="font-size:9px;color:#aaa;">Traffic: <span style="color:#fff;">${p.traffic}</span></div>
@@ -1104,7 +1104,7 @@ function IntelMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCli
       const ghostPriv = '#CE93D8';
       const ghostGov = '#D500F9';
 
-      const flightCom = isGhost ? phantomPurple : '#00E5FF';
+      const flightCom = isGhost ? phantomPurple : '#C47D0E';
       const flightPriv = isGhost ? ghostPriv : '#FFD700';
       const flightGov = isGhost ? ghostGov : '#FF9500';
       const flightMil = '#FF0000';

@@ -27,7 +27,7 @@ function Ticker({ name, data: d }: { name: string; data: any }) {
         <span className="text-[11px] font-mono font-bold text-[var(--text-primary)] tabular-nums">
           {d.price >= 1000 ? `${(d.price / 1000).toFixed(1)}K` : d.price?.toFixed(2)}
         </span>
-        <span className={`text-[9px] font-mono font-bold flex items-center gap-0.5 ${d.up ? 'text-[var(--alert-green)]' : 'text-[var(--alert-red)]'}`}>
+        <span className={`text-[9px] font-mono font-bold flex items-center gap-0.5 ${d.up ? 'text-[var(--live)]' : 'text-[var(--alert-red)]'}`}>
           {d.up ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
           {d.change_percent > 0 ? '+' : ''}{d.change_percent?.toFixed(2)}%
         </span>
@@ -55,7 +55,7 @@ export default function MarketsPanel({ data, spaceWeather }: MarketsPanelProps) 
           <span className="gotham-tag gotham-tag--low" style={{ fontSize: '7px', padding: '1px 4px' }}>LIVE</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-[var(--alert-green)] animate-kintel-pulse" />
+          <div className="w-1.5 h-1.5 rounded-full bg-[var(--live)] animate-kintel-pulse" />
           <button onClick={(e) => { e.stopPropagation(); setMaximized(!maximized); if (!expanded && !maximized) setExpanded(true); }} className="hover:text-white transition-colors" title={maximized ? "Restore" : "Maximize"}>
             {maximized ? <Minimize2 className="w-3.5 h-3.5 text-[var(--text-muted)]" /> : <Maximize2 className="w-3.5 h-3.5 text-[var(--text-muted)]" />}
           </button>

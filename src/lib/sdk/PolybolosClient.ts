@@ -26,7 +26,7 @@ import { LatticeAdapter } from './LatticeAdapter';
 function translateFlights(flights: any[], subtype: string): PolybolosEntity[] {
   if (!flights?.length) return [];
   const colorMap: Record<string, string> = {
-    commercial: '#00E5FF', private: '#00E676', jets: '#FF69B4', military: '#FF3D3D',
+    commercial: '#E8A020', private: '#0E9F6E', jets: '#FF69B4', military: '#FF3D3D',
   };
   const threatMap: Record<string, ThreatLevel> = {
     commercial: ThreatLevel.NONE, private: ThreatLevel.NONE,
@@ -43,7 +43,7 @@ function translateFlights(flights: any[], subtype: string): PolybolosEntity[] {
     source: { provider: 'kintel', feed: `flights-${subtype}`, originalId: f.icao24, confidence: 0.9 },
     timestamp: new Date().toISOString(),
     properties: { model: f.model, registration: f.registration, icao24: f.icao24, subtype },
-    display: { color: colorMap[subtype] || '#00E5FF', icon: `plane-${subtype === 'military' ? 'red' : 'cyan'}`, layerType: 'symbol' as const },
+    display: { color: colorMap[subtype] || '#E8A020', icon: `plane-${subtype === 'military' ? 'red' : 'cyan'}`, layerType: 'symbol' as const },
   }));
 }
 
@@ -131,7 +131,7 @@ function translateCCTV(cameras: any[]): PolybolosEntity[] {
     source: { provider: 'kintel', feed: 'cctv-network', originalId: c.id, confidence: 1.0 },
     timestamp: new Date().toISOString(),
     properties: { city: c.city, country: c.country, source: c.source, feed_url: c.feed_url, stream_url: c.stream_url },
-    display: { color: '#39FF14', icon: 'dot-cctv', layerType: 'circle' as const },
+    display: { color: '#0E9F6E', icon: 'dot-cctv', layerType: 'circle' as const },
   }));
 }
 

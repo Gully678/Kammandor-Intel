@@ -319,7 +319,7 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
                   </a>
                 )}
                 <a href={`https://www.google.com/maps/@${camera.lat},${camera.lng},17z`} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-2 py-1 bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-[8px] font-mono text-[var(--cyan-primary)] tracking-widest">
+                  className="flex items-center gap-1.5 px-2 py-1 bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-[8px] font-mono text-[var(--gold-primary)] tracking-widest">
                   <MapPin className="w-2.5 h-2.5" /> MAP TARGET
                 </a>
               </div>

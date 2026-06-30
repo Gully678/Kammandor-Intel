@@ -14,7 +14,7 @@ export const maxDuration = 60;
 const MISSION_CLASSIFY: Record<string, { mission: string; color: string }> = {
   'USA': { mission: 'Military Recon', color: '#FF3D3D' },
   'NROL': { mission: 'NRO Classified', color: '#FF3D3D' },
-  'LACROSSE': { mission: 'SAR Imaging', color: '#00E5FF' },
+  'LACROSSE': { mission: 'SAR Imaging', color: '#C47D0E' },
   'MENTOR': { mission: 'SIGINT', color: '#FFFFFF' },
   'ORION': { mission: 'SIGINT', color: '#FFFFFF' },
   'TRUMPET': { mission: 'SIGINT', color: '#FFFFFF' },
@@ -25,10 +25,10 @@ const MISSION_CLASSIFY: Record<string, { mission: string; color: string }> = {
   'BEIDOU': { mission: 'Navigation', color: '#448AFF' },
   'SBIRS': { mission: 'Early Warning', color: '#FF00FF' },
   'DSP': { mission: 'Early Warning', color: '#FF00FF' },
-  'STARLINK': { mission: 'Commercial Comms', color: '#00E676' },
-  'ONEWEB': { mission: 'Commercial Comms', color: '#00E676' },
-  'PLANET': { mission: 'Earth Imaging', color: '#00E676' },
-  'WORLDVIEW': { mission: 'Commercial Imaging', color: '#00E676' },
+  'STARLINK': { mission: 'Commercial Comms', color: '#0E9F6E' },
+  'ONEWEB': { mission: 'Commercial Comms', color: '#0E9F6E' },
+  'PLANET': { mission: 'Earth Imaging', color: '#0E9F6E' },
+  'WORLDVIEW': { mission: 'Commercial Imaging', color: '#0E9F6E' },
   'ISS': { mission: 'Space Station', color: '#FFD700' },
   'TIANGONG': { mission: 'Space Station', color: '#FFD700' },
   'COSMOS': { mission: 'Russian Military', color: '#FF6B6B' },
@@ -50,7 +50,7 @@ function classifySatellite(name: string): { mission: string; color: string } {
   for (const [keyword, info] of Object.entries(MISSION_CLASSIFY)) {
     if (upper.includes(keyword)) return info;
   }
-  return { mission: 'Unknown', color: '#00E5FF' };
+  return { mission: 'Unknown', color: '#E8A020' };
 }
 
 function gmst(jd: number): number {

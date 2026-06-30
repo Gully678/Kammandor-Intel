@@ -36,7 +36,7 @@ export async function GET() {
         // AQI color coding based on PM2.5 (WHO/EPA scale)
         const val = pm25.value;
         let level = 'Good';
-        let color = '#00E676';
+        let color = '#0E9F6E';
         if (val > 150) { level = 'Hazardous'; color = '#8B0000'; }
         else if (val > 100) { level = 'Unhealthy'; color = '#FF1744'; }
         else if (val > 55) { level = 'Unhealthy (Sensitive)'; color = '#FF9500'; }

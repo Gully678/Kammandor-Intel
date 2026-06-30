@@ -114,13 +114,13 @@ export function classifyDevice(
     return { device_type: 'Printer', device_icon: 'Printer', device_color: '#F48FB1' };
   }
   if (portSet.has(1883) || portSet.has(8883) || tagLower.includes('iot')) {
-    return { device_type: 'IoT Device', device_icon: 'Cpu', device_color: '#39FF14' };
+    return { device_type: 'IoT Device', device_icon: 'Cpu', device_color: '#0E9F6E' };
   }
   if (portSet.has(5060) || portSet.has(5061)) {
     return { device_type: 'VoIP/SIP', device_icon: 'Phone', device_color: '#87CEEB' };
   }
   if (cpeLower.some((c) => /mikrotik|ubiquiti|cisco|juniper|fortinet/.test(c)) || portSet.has(161) || portSet.has(8291)) {
-    return { device_type: 'Router/Switch', device_icon: 'Router', device_color: '#00E5FF' };
+    return { device_type: 'Router/Switch', device_icon: 'Router', device_color: '#E8A020' };
   }
   if (portSet.has(3306) || portSet.has(5432) || portSet.has(27017) || portSet.has(6379) || portSet.has(9200) || portSet.has(5984)) {
     return { device_type: 'Database', device_icon: 'Database', device_color: '#FF6B00' };

@@ -552,7 +552,7 @@ export default function AiAnalyst({ data }: AiAnalystProps) {
                           href="https://aistudio.google.com/apikey"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[var(--cyan-primary)] hover:underline"
+                          className="text-[var(--gold-primary)] hover:underline"
                         >
                           aistudio.google.com
                         </a>
@@ -578,7 +578,7 @@ export default function AiAnalyst({ data }: AiAnalystProps) {
                       <motion.div
                         animate={{ rotate: [0, -360] }}
                         transition={{ duration: 14, repeat: Infinity, ease: 'linear' }}
-                        className="absolute inset-[-20px] rounded-full border border-[var(--cyan-primary)]"
+                        className="absolute inset-[-20px] rounded-full border border-[var(--gold-primary)]/40"
                         style={{ opacity: 0.08 }}
                       />
                       <div
@@ -663,7 +663,7 @@ export default function AiAnalyst({ data }: AiAnalystProps) {
                       {/* Message header */}
                       <div className="flex items-center gap-1.5 mb-1.5">
                         {msg.role === 'user' ? (
-                          <User className="w-3 h-3 text-[var(--cyan-primary)]" />
+                          <User className="w-3 h-3 text-[var(--gold-primary)]" />
                         ) : msg.isError ? (
                           <AlertTriangle className="w-3 h-3 text-[var(--alert-red)]" />
                         ) : (
@@ -673,7 +673,7 @@ export default function AiAnalyst({ data }: AiAnalystProps) {
                           className="text-[8px] font-mono tracking-[0.15em] uppercase"
                           style={{
                             color: msg.role === 'user'
-                              ? 'var(--cyan-primary)'
+                              ? 'var(--gold-primary)'
                               : msg.isError
                               ? 'var(--alert-red)'
                               : 'var(--gold-primary)',
@@ -814,7 +814,7 @@ export default function AiAnalyst({ data }: AiAnalystProps) {
                     <Send
                       className="w-3.5 h-3.5"
                       style={{
-                        color: inputText.trim() && !isLoading ? 'var(--cyan-primary)' : 'var(--text-muted)',
+                        color: inputText.trim() && !isLoading ? 'var(--gold-primary)' : 'var(--text-muted)',
                       }}
                     />
                   </motion.button>
