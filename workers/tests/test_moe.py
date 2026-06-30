@@ -151,7 +151,6 @@ async def test_persist_node_is_only_writer():
     class FakeTable:
         def __init__(self, name):
             self._name = name
-            fake_table_calls.append(name)
         def insert(self, data):
             return self
         def execute(self):
@@ -165,8 +164,18 @@ async def test_persist_node_is_only_writer():
         def in_(self, *a):
             return self
 
-    class FakeClient:
+    class FakeSchema:
+        def __init__(self, schema):
+            self._schema = schema
         def table(self, name):
+            fake_table_calls.append(f"{self._schema}.{name}")
+            return FakeTable(name)
+
+    class FakeClient:
+        def schema(self, name):
+            return FakeSchema(name)
+        def table(self, name):
+            fake_table_calls.append(name)
             return FakeTable(name)
 
     fake_supabase = MagicMock()

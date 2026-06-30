@@ -91,7 +91,7 @@ def _build_graph():
             client: Client = create_client(supabase_url, service_key)
 
             query = (
-                client.table("intel.entity")
+                client.schema("intel").table("entity")
                 .select("*")
                 .eq("tenant_id", state["tenant_id"])
             )
@@ -259,7 +259,7 @@ def _build_graph():
 
             # Write ONLY to intel.proposed_edit — never to entity/link
             resp = (
-                client.table("intel.proposed_edit")
+                client.schema("intel").table("proposed_edit")
                 .insert(proposed_edits)
                 .execute()
             )
