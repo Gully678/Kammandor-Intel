@@ -869,13 +869,10 @@ export default function Dashboard() {
       {/* ── HEADER (standalone-only chrome — hidden in embed mode) ── */}
       {!embedMode && <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, delay: 2.5 }} className={`absolute top-4 z-[200] pointer-events-none flex flex-col`} style={{ left: isMobile ? '24px' : '64px', right: '24px' }}>
         <div className="flex items-center gap-3 w-fit">
-          {/* Kammandor device mark — zigzag line-chart in cream tile */}
-          <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg shrink-0 flex items-center justify-center" style={{ background: '#ECE5D7' }}>
-            <svg viewBox="0 0 32 32" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M5 23 L12 13 L18 18 L27 8" stroke="#16141C" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="5" cy="23" r="2.8" fill="#16141C"/>
-              <circle cx="27" cy="8" r="2.8" fill="#16141C"/>
-            </svg>
+          {/* Kammandor device mark — real device PNG on cream tile (transparent PNG, amber mark) */}
+          <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg shrink-0 flex items-center justify-center" style={{ background: '#ECE5D7', padding: '4px' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/ClaimsPath_Device_Favicon.png" alt="Kammandor device mark" width={28} height={28} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <div className="flex flex-col items-start gap-0.5">
             <h1 className="text-lg md:text-xl font-bold tracking-[0.35em] text-[var(--on-ink)] font-serif">KAMMANDOR INTEL</h1>
