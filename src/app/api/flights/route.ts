@@ -140,8 +140,64 @@ function classifyFlight(f: any) {
 // For a globally shared cache, migrate to Vercel KV or similar persistent store.
 let cachedData: any = null;
 let lastFetchTime = 0;
-const CACHE_TTL = 45000; // 45 seconds cache window
+// 90s cache window. Full-globe OpenSky /states/all costs 4 credits/call; the authenticated
+// account budget is 4000 credits/day = 1000 calls/day = one per ~86s. A shorter TTL (the old
+// 45s) under steady traffic issues ~1920 calls/day = ~7680 credits — roughly 2x the authenticated
+// budget and ~19x the anonymous budget, which is what got the server IP rate-limited.
+const CACHE_TTL = 90000;
 let fetchPromise: Promise<any> | null = null;
+
+// When OpenSky returns 429 (rate-limited), stop hammering it for a while. Re-poking a limited
+// endpoint on every cache miss keeps the IP throttled and prevents the quota from resetting.
+// During cooldown we skip OpenSky entirely and serve the adsb.lol regional fallback.
+let openSkyCooldownUntil = 0;
+const OPENSKY_COOLDOWN = 15 * 60 * 1000; // 15 minutes
+
+// OpenSky OAuth2 token cache.
+// Anonymous OpenSky requests are rate-limited PER SOURCE IP; on Vercel the shared
+// datacenter IP exhausts the anonymous pool and returns 429 — which is why the live
+// server falls back to the ~10%-coverage adsb.lol regional fetch while localhost
+// (residential IP) sees the full feed. Authenticated requests draw from the account's
+// own credit pool (4000/day) instead, bypassing the per-IP throttle.
+// Set OPENSKY_CLIENT_ID / OPENSKY_CLIENT_SECRET to enable; without them this is a no-op
+// and the code falls back to anonymous access exactly as before.
+let osToken: string | null = null;
+let osTokenExpiry = 0;
+
+async function getOpenSkyToken(): Promise<string | null> {
+  const id = process.env.OPENSKY_CLIENT_ID;
+  const secret = process.env.OPENSKY_CLIENT_SECRET;
+  if (!id || !secret) return null;
+  if (osToken && Date.now() < osTokenExpiry) return osToken;
+
+  try {
+    const res = await fetch(
+      'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'client_credentials',
+          client_id: id,
+          client_secret: secret,
+        }),
+        signal: AbortSignal.timeout(10000),
+      }
+    );
+    if (!res.ok) {
+      console.warn('[KINTEL] OpenSky token request failed:', res.status);
+      return null;
+    }
+    const data = await res.json();
+    osToken = data.access_token;
+    // Refresh 60s before the real expiry to avoid using a token mid-rotation
+    osTokenExpiry = Date.now() + ((data.expires_in || 1800) - 60) * 1000;
+    return osToken;
+  } catch (e) {
+    console.warn('[KINTEL] OpenSky token error:', e);
+    return null;
+  }
+}
 
 export async function GET() {
   const now = Date.now();
@@ -170,9 +226,22 @@ export async function GET() {
 
   // Start new global fetch
   fetchPromise = (async () => {
+    // Skip OpenSky entirely while it's cooling down from a recent 429 — re-poking a
+    // rate-limited endpoint keeps the IP throttled and stops the quota from resetting.
+    const skipOpenSky = Date.now() < openSkyCooldownUntil;
+
+    // Authenticate to OpenSky when credentials are present so the live server draws
+    // from the account credit pool instead of the throttled anonymous per-IP pool.
+    const token = skipOpenSky ? null : await getOpenSkyToken();
+    const osInit: RequestInit = token
+      ? { signal: AbortSignal.timeout(30000), headers: { Authorization: `Bearer ${token}` } }
+      : { signal: AbortSignal.timeout(30000) };
+
     // Fetch OpenSky for global traffic and airplanes.live for military & private jets
     const [osRes, milRes, laddRes] = await Promise.allSettled([
-      stealthFetch('https://opensky-network.org/api/states/all', { signal: AbortSignal.timeout(30000) }),
+      skipOpenSky
+        ? Promise.reject(new Error('OpenSky in cooldown'))
+        : stealthFetch('https://opensky-network.org/api/states/all', osInit),
       stealthFetch('https://api.airplanes.live/v2/mil', { signal: AbortSignal.timeout(20000) }),
       stealthFetch('https://api.airplanes.live/v2/ladd', { signal: AbortSignal.timeout(20000) })
     ]);
@@ -210,6 +279,11 @@ export async function GET() {
 
     // Process OpenSky flights globally
     let openSkyWorked = false;
+    if (osRes.status === 'fulfilled' && osRes.value.status === 429) {
+      // Rate-limited — back off so we don't keep the IP throttled.
+      openSkyCooldownUntil = Date.now() + OPENSKY_COOLDOWN;
+      console.warn('[KINTEL] OpenSky returned 429 — cooling down for 15 min, using adsb.lol fallback');
+    }
     if (osRes.status === 'fulfilled' && osRes.value.ok) {
       try {
         const data = await osRes.value.json();
@@ -236,7 +310,7 @@ export async function GET() {
       } catch(e) {}
     }
 
-    // Fallback: If OpenSky failed (429 rate limit / timeout), fan out to adsb.lol regions
+    // Fallback: If OpenSky failed (429 rate limit / blocked datacenter IP), fan out to adsb.lol regions
     if (!openSkyWorked) {
       console.warn('[KINTEL] OpenSky unavailable — falling back to adsb.lol regional fetch');
       const regionResults = await Promise.allSettled(REGIONS.map(r => fetchRegion(r)));
@@ -302,8 +376,8 @@ export async function GET() {
     lastFetchTime = Date.now();
     fetchPromise = null;
 
-    const cacheControl = data.total < 100 
-      ? 'no-store, max-age=0' 
+    const cacheControl = data.total < 100
+      ? 'no-store, max-age=0'
       : 'public, s-maxage=30, stale-while-revalidate=60';
 
     return NextResponse.json(data, {
@@ -348,4 +422,3 @@ function aggregateJamming(points: any[], threshold: number) {
       count: z.count,
     }));
 }
-
