@@ -118,6 +118,17 @@ export const SOURCES: SourceDef[] = [
     renderMode: 'map-layer',
     enabledByDefault: false,
   },
+  {
+    key: 'social',
+    label: 'Social & People',
+    category: 'Social & People',
+    // byok: tenant supplies Bright Data API token + LinkedIn dataset IDs.
+    // Returns raw LinkedIn/social profile data; personal data — GDPR sign-off required.
+    tier: 'byok',
+    auth: 'tenant-key',
+    renderMode: 'panel',
+    enabledByDefault: false,
+  },
 ];
 
 /** Lookup a source by its key. Returns undefined if not found. */

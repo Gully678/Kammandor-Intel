@@ -10,7 +10,7 @@ import {
   Wifi, Lock, MapPin, Bug, Code, Layers, Network, Fingerprint,
   CheckCircle, XCircle, Clock, ExternalLink, Crosshair,
   Maximize2, Minimize2, Gavel, Bitcoin, Phone, Terminal, ShieldAlert,
-  Building2, BookOpen, IdCard, Star
+  Building2, BookOpen, IdCard, Star, Users
 } from 'lucide-react';
 import { ipToNumber, numberToIp, calculateSubnetStart, classifyDevice, assessRisk, batchFetch, ShodanInternetDBResponse, SweepDevice } from '@/lib/osint-utils';
 import { FLAGS } from '@/config/featureFlags';
@@ -34,6 +34,7 @@ const TABS = [
   { id: 'sec-edgar', label: 'SEC EDGAR', icon: BookOpen, placeholder: 'Company name or keyword', color: '#00C853' },
   { id: 'gleif', label: 'LEI LOOKUP', icon: IdCard, placeholder: 'Legal entity name or LEI code', color: '#D4AF37' },
   { id: 'reviews', label: 'REVIEWS', icon: Star, placeholder: 'Brand name or App Store ID (e.g. 284882215)', color: '#FF6B35' },
+  { id: 'social', label: 'SOCIAL & PEOPLE', icon: Users, placeholder: 'Company or person name / LinkedIn URL', color: '#0077B5' },
 ];
 
 // Tabs gated behind activeReconEnabled flag
@@ -208,6 +209,15 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         case 'sec-edgar': url = `/api/sec-edgar?q=${encodeURIComponent(query)}`; break;
         case 'gleif': url = `/api/gleif?${query.match(/^[A-Z0-9]{20}$/) ? 'lei' : 'name'}=${encodeURIComponent(query)}`; break;
         case 'reviews': url = `/api/reviews?entity=${encodeURIComponent(query)}`; break;
+        case 'social': {
+          // Detect if query looks like a LinkedIn URL for direct-profile path
+          const isUrl = query.startsWith('http');
+          const socialType = (query.toLowerCase().includes('company') || query.toLowerCase().includes('/company/')) ? 'company' : 'person';
+          url = isUrl
+            ? `/api/social?type=${socialType}&url=${encodeURIComponent(query)}`
+            : `/api/social?type=${socialType}&query=${encodeURIComponent(query)}`;
+          break;
+        }
         case 'shodan': url = `https://internetdb.shodan.io/${encodeURIComponent(query)}`; break;
       }
       const res = await fetch(url, activeTab === 'shodan' ? { cache: 'no-store' } : undefined);
@@ -710,6 +720,58 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
           </div>
           <div className="text-[7px] font-mono text-[var(--text-muted)] italic px-1 mt-1">
             Sentiment scoring handled by Kammandor — raw provider data only.
+          </div>
+        </div>
+      );
+    }
+
+    // ── SOCIAL & PEOPLE ──
+    // Raw provider data — scored in Kammandor; personal data — see GDPR note.
+    if (activeTab === 'social') {
+      if (!results) return null;
+      const { profiles = [], provider = '' } = results as any;
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 mb-1">
+            <Users className="w-3.5 h-3.5" style={{ color: '#0077B5' }} />
+            <span className="hud-text text-[11px] font-bold" style={{ color: '#0077B5' }}>SOCIAL &amp; PEOPLE</span>
+            {provider && <span className="gotham-tag gotham-tag--low text-[7px] px-1 uppercase">{provider}</span>}
+          </div>
+          <div className="text-[7px] font-mono text-[var(--text-muted)] italic px-1 mb-2 border border-[#0077B530] rounded p-1 bg-[var(--bg-secondary)]">
+            Raw provider data · Scored in Kammandor · Personal data — GDPR sign-off required before production use.
+          </div>
+          {profiles.length === 0 && (
+            <div className="text-[10px] font-mono text-[var(--text-muted)] py-2">
+              No profiles returned. Check BRIGHTDATA_API_TOKEN and BRIGHTDATA_DS_LI_* env vars are configured.
+            </div>
+          )}
+          <div className="space-y-1.5 max-h-96 overflow-y-auto pr-1">
+            {profiles.map((p: any, i: number) => (
+              <div key={i} className="p-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-mono font-bold text-[var(--text-primary)] truncate">{p.name}</span>
+                  <span className="text-[7px] font-mono text-[#0077B5] uppercase flex-shrink-0">{p.type}</span>
+                </div>
+                {p.headline && (
+                  <p className="text-[8px] font-mono text-[var(--text-secondary)] leading-relaxed line-clamp-2">{p.headline}</p>
+                )}
+                <div className="flex items-center gap-3 flex-wrap">
+                  {p.location && <span className="text-[8px] font-mono text-[var(--text-muted)]">{p.location}</span>}
+                  {typeof p.followers === 'number' && (
+                    <span className="text-[8px] font-mono text-[var(--text-muted)]">{p.followers.toLocaleString()} followers</span>
+                  )}
+                  {typeof p.employees === 'number' && (
+                    <span className="text-[8px] font-mono text-[var(--text-muted)]">{p.employees.toLocaleString()} employees</span>
+                  )}
+                </div>
+                {p.url && (
+                  <a href={p.url} target="_blank" rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-[8px] font-mono text-[#0077B5] hover:underline">
+                    <ExternalLink className="w-2.5 h-2.5" /> LinkedIn
+                  </a>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       );
