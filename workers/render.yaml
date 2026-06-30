@@ -1,0 +1,50 @@
+# KINTEL Workers — Render Blueprint
+# Deploy this service separately from the Next.js app (which lives on Vercel).
+#
+# Usage:
+#   1. Connect your repo to Render.
+#   2. Set Root Directory to: workers
+#   3. Render will detect this render.yaml automatically.
+#   4. Set all env vars in the Render dashboard (see below).
+
+services:
+  - type: web
+    name: kammandor-intel-workers
+    runtime: python
+    rootDir: workers
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    plan: starter          # upgrade to standard for production workloads
+
+    envVars:
+      # Supabase — required for DB reads (retrieve node) and secret vault
+      - key: SUPABASE_URL
+        sync: false          # set manually in Render dashboard
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+      # AI provider keys — at least one critical-tier key required
+      # critical tier: anthropic (primary) → zhipu (fallback)
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ZHIPU_API_KEY
+        sync: false
+
+      # Optional — fast tier
+      - key: OPENAI_API_KEY
+        sync: false
+      # Optional — balanced / fast tier fallback
+      - key: GOOGLE_API_KEY
+        sync: false
+
+      # Model ID overrides — omit to use defaults in config.py
+      # Defaults: claude-opus-4-5, gpt-4o-mini, gemini-1.5-flash, glm-4-flash
+      - key: AI_MODEL_ANTHROPIC
+        value: claude-opus-4-5
+      - key: AI_MODEL_OPENAI
+        value: gpt-4o-mini
+      - key: AI_MODEL_GOOGLE
+        value: gemini-1.5-flash
+      - key: AI_MODEL_ZHIPU
+        value: glm-4-flash
