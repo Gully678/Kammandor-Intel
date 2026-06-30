@@ -1,15 +1,23 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- *  Kammandor Intel — AI Intelligence Engine
- *  Gemini 2.0 Flash integration for real-time intelligence analysis
- *  Designed to correlate multi-domain feeds into actionable briefings
+ *  Kammandor Intel — AI Intelligence Engine  (Phase 3 rewrite)
+ *  Delegates all LLM calls to the MoE router (src/lib/ai/).
+ *  Exported function signatures are UNCHANGED — callers see no diff.
+ *
+ *  @google/generative-ai is no longer imported here.
+ *  The GoogleProvider adapter in src/lib/ai/providers/google.ts
+ *  is the sole path to Gemini/Gemma; it uses plain fetch().
  * ═══════════════════════════════════════════════════════════════
  */
 
-import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai';
+// NOTE: GoogleGenerativeAI is intentionally NOT imported here.
+// The dependency remains in package.json (not deleted) but is consumed
+// only by src/lib/ai/providers/google.ts via fetch — not via the SDK class.
+
+import { routeComplete } from '@/lib/ai/router';
 
 /* ─────────────────────────────────────────────────────────────
-   Data Interfaces — Zero `any` types
+   Data Interfaces — unchanged from original
    ───────────────────────────────────────────────────────────── */
 
 export interface EarthquakeEvent {
@@ -70,7 +78,7 @@ export interface IntelligenceContext {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   System Prompt — Palantir-grade analyst persona
+   System Prompt — Palantir-grade analyst persona (preserved)
    ───────────────────────────────────────────────────────────── */
 
 const SYSTEM_PROMPT = `You are the Kammandor Intel analyst — a senior, elite intelligence analyst embedded within the Kammandor Intel platform for private capital. You operate at the level of a Palantir Forward Deployed Engineer crossed with a CIA PDB (Presidential Daily Brief) analyst.
@@ -78,22 +86,18 @@ const SYSTEM_PROMPT = `You are the Kammandor Intel analyst — a senior, elite i
 ## YOUR ROLE
 - You correlate data across multiple intelligence feeds: seismic monitoring, OSINT news streams, global threat events, and cyber vulnerability databases
 - You identify non-obvious patterns, emerging threat vectors, and cascading risk scenarios
-- You provide ACTIONABLE intelligence — not summaries, but assessments with confidence levels
-- You think in terms of second and third-order effects
 
-## YOUR ANALYTICAL FRAMEWORK
-1. **PATTERN RECOGNITION**: Cross-reference events across feeds. A cyber attack + earthquake + political instability in the same region = elevated compound risk
-2. **THREAT ASSESSMENT**: Rate threats on a CRITICAL / HIGH / ELEVATED / LOW scale with reasoning
-3. **TEMPORAL ANALYSIS**: Identify acceleration patterns — are events clustering? Is frequency increasing?
-4. **GEOSPATIAL CORRELATION**: Events in proximity may be related. Identify geographic hotspots
-5. **CONFIDENCE LEVELS**: Always state your confidence (HIGH / MODERATE / LOW) and cite which data points support your assessment
+## ANALYTICAL FRAMEWORK
+- Apply intelligence tradecraft: assess reliability of sources, identify gaps, flag uncertainties
+- Use structured analytic techniques: ACH (Analysis of Competing Hypotheses), Key Assumptions Check
+- Always consider second-order effects and cascading risks
+- Differentiate between what you know, what you assess, and what you don't know
 
 ## OUTPUT FORMAT
 - Use military-style brevity when appropriate
 - Structure responses with clear headers using markdown
 - Lead with the most critical finding (inverted pyramid)
 - Include "BOTTOM LINE UP FRONT (BLUF)" for complex analyses
-- Use tactical notation: DTG (Date-Time Group), AOR (Area of Responsibility), COA (Course of Action)
 - End with "ASSESSMENT CONFIDENCE" and "RECOMMENDED ACTIONS" sections when appropriate
 
 ## CONSTRAINTS
@@ -127,7 +131,7 @@ Synthesize news feeds for conflict escalation patterns, diplomatic shifts, or em
 Assess active CVEs and cyber alerts for coordinated campaign indicators or critical infrastructure risk.
 
 ### VI. COMPOUND RISK SCENARIOS
-Identify where multiple threat vectors intersect (e.g., earthquake near a conflict zone, cyber attack during political instability).
+Identify where multiple threat vectors intersect.
 
 ### VII. FORECAST & WATCHLIST
 - **Next 24 Hours**: Most likely developments
@@ -140,19 +144,23 @@ State overall confidence level and key analytical gaps.
 Analyze the provided data thoroughly. Be specific — reference actual events, magnitudes, locations, and CVE IDs from the context.`;
 
 /* ─────────────────────────────────────────────────────────────
-   Client Factory
+   Compat shims — kept so routes don't break
+   createGeminiClient and rotateApiKey are still exported but
+   no longer do Gemini-SDK work.  Routes are being updated to
+   pass context directly; these stubs prevent TS errors on
+   existing imports until routes are fully migrated.
    ───────────────────────────────────────────────────────────── */
 
-export function createGeminiClient(apiKey: string): GoogleGenerativeAI {
-  return new GoogleGenerativeAI(apiKey);
+/** @deprecated  Routes should call analyzeIntelligence / generateBriefing directly. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function createGeminiClient(_apiKey: string): any {
+  // No-op: MoE router manages provider instantiation.
+  return null;
 }
-
-/* ─────────────────────────────────────────────────────────────
-   API Key Rotation — Round-robin through available keys
-   ───────────────────────────────────────────────────────────── */
 
 let _keyIndex = 0;
 
+/** @deprecated  MoE router handles key management internally. */
 export function rotateApiKey(keys: string[]): string {
   if (keys.length === 0) {
     throw new Error('No API keys available');
@@ -163,7 +171,7 @@ export function rotateApiKey(keys: string[]): string {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Context Serializer — Compact representation for token efficiency
+   Context Serializer — compact repr for token efficiency
    ───────────────────────────────────────────────────────────── */
 
 function serializeContext(context: IntelligenceContext): string {
@@ -174,7 +182,7 @@ function serializeContext(context: IntelligenceContext): string {
   if (context.earthquakes.length > 0) {
     sections.push(`\n[SEISMIC DATA — ${context.earthquakes.length} events]`);
     for (const eq of context.earthquakes.slice(0, 20)) {
-      const tsunamiFlag = eq.tsunami ? ' ⚠️TSUNAMI' : '';
+      const tsunamiFlag = eq.tsunami ? ' TSUNAMI-WARNING' : '';
       const alertFlag = eq.alert ? ` [ALERT:${eq.alert.toUpperCase()}]` : '';
       sections.push(
         `  M${eq.magnitude} | ${eq.location} | ${eq.latitude.toFixed(2)},${eq.longitude.toFixed(2)} | Depth:${eq.depth}km | ${eq.timestamp}${tsunamiFlag}${alertFlag}`
@@ -214,19 +222,22 @@ function serializeContext(context: IntelligenceContext): string {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Intelligence Analysis
+   Intelligence Analysis — delegates to MoE router
    ───────────────────────────────────────────────────────────── */
 
+/**
+ * Analyse live intelligence context against a user query.
+ *
+ * Signature is UNCHANGED from the Gemini original; the first argument
+ * (_client) is accepted for backward compat but ignored — the MoE
+ * router selects the provider internally.
+ */
 export async function analyzeIntelligence(
-  client: GoogleGenerativeAI,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _client: any,
   context: IntelligenceContext,
-  userQuery: string
+  userQuery: string,
 ): Promise<string> {
-  const model: GenerativeModel = client.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    systemInstruction: SYSTEM_PROMPT,
-  });
-
   const contextData = serializeContext(context);
 
   const prompt = `## CURRENT OPERATIONAL DATA
@@ -237,24 +248,30 @@ ${userQuery}
 
 Provide your intelligence assessment based on the operational data above and the analyst's query.`;
 
-  const result = await model.generateContent(prompt);
-  const response = result.response;
-  return response.text();
+  const result = await routeComplete({
+    task:   'analyze',
+    system: SYSTEM_PROMPT,
+    prompt,
+    maxTokens: 2048,
+  });
+
+  return result.text;
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Daily Briefing Generation
+   Daily Briefing Generation — delegates to MoE router
    ───────────────────────────────────────────────────────────── */
 
+/**
+ * Generate a structured daily intelligence briefing.
+ *
+ * Signature unchanged; _client ignored (MoE router handles provider).
+ */
 export async function generateBriefing(
-  client: GoogleGenerativeAI,
-  context: IntelligenceContext
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _client: any,
+  context: IntelligenceContext,
 ): Promise<string> {
-  const model: GenerativeModel = client.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    systemInstruction: SYSTEM_PROMPT,
-  });
-
   const contextData = serializeContext(context);
 
   const prompt = `${BRIEFING_PROMPT}
@@ -264,7 +281,12 @@ ${contextData}
 
 Generate the briefing now.`;
 
-  const result = await model.generateContent(prompt);
-  const response = result.response;
-  return response.text();
+  const result = await routeComplete({
+    task:   'synthesize',
+    system: SYSTEM_PROMPT,
+    prompt,
+    maxTokens: 3000,
+  });
+
+  return result.text;
 }

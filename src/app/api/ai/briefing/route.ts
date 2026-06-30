@@ -1,18 +1,14 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- *  KINTEL — AI Intelligence Briefing Endpoint
+ *  KINTEL — AI Intelligence Briefing Endpoint  (Phase 3 rewrite)
  *  POST /api/ai/briefing
- *  Generates structured threat briefings via Gemini
+ *  Generates structured threat briefings via MoE router.
+ *  Returns 422 "AI not configured" when no provider key is set.
  * ═══════════════════════════════════════════════════════════════
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  createGeminiClient,
-  rotateApiKey,
-  generateBriefing,
-  type IntelligenceContext,
-} from '@/lib/ai-engine';
+import { generateBriefing, type IntelligenceContext } from '@/lib/ai-engine';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,26 +45,9 @@ function checkRateLimit(ip: string): { allowed: boolean; remaining: number; rese
 setInterval(() => {
   const now = Date.now();
   for (const [ip, entry] of rateLimitMap.entries()) {
-    if (now > entry.resetAt) {
-      rateLimitMap.delete(ip);
-    }
+    if (now > entry.resetAt) rateLimitMap.delete(ip);
   }
 }, 120_000);
-
-/* ─────────────────────────────────────────────────────────────
-   Environment Key Collection
-   ───────────────────────────────────────────────────────────── */
-
-function getEnvApiKeys(): string[] {
-  const keys: string[] = [];
-  for (let i = 1; i <= 8; i++) {
-    const key = process.env[`GEMINI_API_KEY_${i}`];
-    if (key && key.trim().length > 0) {
-      keys.push(key.trim());
-    }
-  }
-  return keys;
-}
 
 /* ─────────────────────────────────────────────────────────────
    Request / Response types
@@ -79,13 +58,13 @@ interface BriefingRequestBody {
 }
 
 interface BriefingResponse {
-  briefing: string;
-  generatedAt: string;
+  briefing:     string;
+  generatedAt:  string;
 }
 
 interface ErrorResponse {
-  error: string;
-  code: string;
+  error:       string;
+  code:        string;
   retryAfter?: number;
 }
 
@@ -94,7 +73,7 @@ interface ErrorResponse {
    ───────────────────────────────────────────────────────────── */
 
 export async function POST(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<NextResponse<BriefingResponse | ErrorResponse>> {
   const ip =
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
@@ -105,38 +84,18 @@ export async function POST(
   if (!rateCheck.allowed) {
     return NextResponse.json(
       {
-        error: 'Rate limit exceeded. Maximum 5 requests per minute.',
-        code: 'RATE_LIMITED',
+        error:      'Rate limit exceeded. Maximum 5 requests per minute.',
+        code:       'RATE_LIMITED',
         retryAfter: Math.ceil(rateCheck.resetIn / 1000),
       },
       {
-        status: 429,
+        status:  429,
         headers: {
-          'Retry-After': String(Math.ceil(rateCheck.resetIn / 1000)),
+          'Retry-After':           String(Math.ceil(rateCheck.resetIn / 1000)),
           'X-RateLimit-Remaining': '0',
         },
-      }
+      },
     );
-  }
-
-  const userKey = request.headers.get('x-gemini-key')?.trim();
-  let apiKey: string;
-
-  if (userKey && userKey.length > 0) {
-    apiKey = userKey;
-  } else {
-    const envKeys = getEnvApiKeys();
-    if (envKeys.length === 0) {
-      return NextResponse.json(
-        {
-          error:
-            'No Gemini API key configured. Set GEMINI_API_KEY_1 in environment or provide a key via the settings panel.',
-          code: 'NO_API_KEY',
-        },
-        { status: 503 }
-      );
-    }
-    apiKey = rotateApiKey(envKeys);
   }
 
   let body: BriefingRequestBody;
@@ -145,20 +104,20 @@ export async function POST(
   } catch {
     return NextResponse.json(
       { error: 'Invalid JSON in request body.', code: 'INVALID_BODY' },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   if (!body.context) {
     return NextResponse.json(
       { error: 'Intelligence context is required.', code: 'MISSING_CONTEXT' },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   try {
-    const client = createGeminiClient(apiKey);
-    const briefing = await generateBriefing(client, body.context);
+    // _client is null — ai-engine now ignores it and delegates to the MoE router
+    const briefing = await generateBriefing(null, body.context);
 
     return NextResponse.json(
       {
@@ -166,45 +125,27 @@ export async function POST(
         generatedAt: new Date().toISOString(),
       },
       {
-        headers: {
-          'X-RateLimit-Remaining': String(rateCheck.remaining),
-        },
-      }
+        headers: { 'X-RateLimit-Remaining': String(rateCheck.remaining) },
+      },
     );
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown Gemini API error';
+    const message = err instanceof Error ? err.message : 'Unknown error';
 
-    if (message.includes('API_KEY_INVALID') || message.includes('API key not valid')) {
-      return NextResponse.json(
-        { error: 'Invalid Gemini API key. Please check your configuration.', code: 'INVALID_KEY' },
-        { status: 401 }
-      );
-    }
-
-    if (message.includes('RESOURCE_EXHAUSTED') || message.includes('quota')) {
+    // MoE router exhausted all providers — no key configured
+    if (message.includes('All providers failed') || message.includes('not configured')) {
       return NextResponse.json(
         {
-          error: 'Gemini API quota exhausted. Try again later or provide your own API key.',
-          code: 'QUOTA_EXHAUSTED',
+          error: 'AI not configured. Set at least one provider key: ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, or ZHIPU_API_KEY.',
+          code:  'AI_NOT_CONFIGURED',
         },
-        { status: 429 }
-      );
-    }
-
-    if (message.includes('SAFETY')) {
-      return NextResponse.json(
-        {
-          error: 'Response blocked by Gemini safety filters. Try again.',
-          code: 'SAFETY_BLOCKED',
-        },
-        { status: 422 }
+        { status: 422 },
       );
     }
 
     console.error('[KINTEL AI] Briefing error:', message);
     return NextResponse.json(
       { error: 'Briefing generation failed. Please try again.', code: 'BRIEFING_FAILED' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
