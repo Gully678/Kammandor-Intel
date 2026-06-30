@@ -7,7 +7,7 @@
  *   GET  https://api.dataforseo.com/v3/business_data/google/reviews/task_get/{id}
  *   GET  https://api.dataforseo.com/v3/business_data/trustpilot/reviews/task_get/{id}
  *
- * Auth: Basic auth — base64(DATAFORSEO_LOGIN:DATAFORSEO_PASSWORD)
+ * Auth: Basic auth — base64(DATAFORSEO_LOGIN:DATAFORSEO_API_KEY)
  * Task POST payload: [{ keyword, location_code, language_code, depth, sort_by }]
  * Task POST response: tasks[].id (task UUID) — result is null at this stage.
  * Task GET response: tasks[].result[].items[] with per-review objects.
@@ -28,6 +28,7 @@
  */
 
 import type { ReviewsAdapter, ReviewsResponse, ReviewsQueryParams, ReviewRecord } from '../../index';
+import { getSecret, getSecretOrThrow } from '../../../secrets';
 
 // ── Platform → endpoint slug mapping ────────────────────────────────────────
 // Verified from https://docs.dataforseo.com/v3/ Business Data API navigation:
@@ -48,19 +49,19 @@ const DATAFORSEO_BASE = 'https://api.dataforseo.com';
 /** Max polling iterations (each ~1 s apart) before giving up on async task */
 const MAX_POLL = 20;
 
-function requireCredentials(): { login: string; password: string } {
-  const login    = process.env.DATAFORSEO_LOGIN;
-  const password = process.env.DATAFORSEO_PASSWORD;
-  if (!login || !password) {
+async function requireCredentials(): Promise<{ login: string; apiKey: string }> {
+  const login  = await getSecret('DATAFORSEO_LOGIN');
+  const apiKey = await getSecretOrThrow('DATAFORSEO_API_KEY');
+  if (!login) {
     throw new Error(
-      'provider key required: set DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD for dataforseo provider'
+      'provider key required: DATAFORSEO_LOGIN not configured (set env or Supabase Vault)'
     );
   }
-  return { login, password };
+  return { login, apiKey };
 }
 
-function authHeader(login: string, password: string): string {
-  return `Basic ${Buffer.from(`${login}:${password}`).toString('base64')}`;
+function authHeader(login: string, apiKey: string): string {
+  return `Basic ${Buffer.from(`${login}:${apiKey}`).toString('base64')}`;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -71,8 +72,8 @@ export class DataForSeoAdapter implements ReviewsAdapter {
   readonly name = 'dataforseo';
 
   async getReviews({ entity, platform = 'google', limit = 25 }: ReviewsQueryParams): Promise<ReviewsResponse> {
-    const { login, password } = requireCredentials();
-    const auth = authHeader(login, password);
+    const { login, apiKey } = await requireCredentials();
+    const auth = authHeader(login, apiKey);
 
     const slug = PLATFORM_SLUG[platform.toLowerCase()] ?? DEFAULT_PLATFORM_SLUG;
     // Verified POST endpoint:

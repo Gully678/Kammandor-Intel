@@ -18,7 +18,7 @@
  *          Body: [{ url: "https://www.linkedin.com/..." }]
  *          Response: JSON array of structured profile records (same shape)
  *
- * Auth: Bearer BRIGHTDATA_API_TOKEN
+ * Auth: Bearer BRIGHTDATA_API_KEY
  *
  * Dataset IDs (founder must configure in Bright Data control panel + set env vars):
  *   BRIGHTDATA_DS_LI_PEOPLE   — LinkedIn People / Profiles dataset
@@ -46,6 +46,7 @@
 
 import type { SocialAdapter, SocialProfileQueryParams, SocialProfilesResponse, SocialProfile } from '../index';
 import { syncScrape, triggerAndFetch } from '../../brightdata/client';
+import { getSecretOrThrow } from '../../secrets';
 
 // ── Dataset ID resolution ────────────────────────────────────────────────────
 
@@ -66,12 +67,9 @@ function getDatasetId(type: 'company' | 'person' | 'job' | 'post'): string {
   return id;
 }
 
-function requireToken(): void {
-  if (!process.env.BRIGHTDATA_API_TOKEN) {
-    throw new Error(
-      'provider key required: set BRIGHTDATA_API_TOKEN for brightdata social provider'
-    );
-  }
+async function requireToken(): Promise<void> {
+  // Validate key is present (throws with clear message if not)
+  await getSecretOrThrow('BRIGHTDATA_API_KEY');
 }
 
 // ── Normalise LinkedIn person profile ────────────────────────────────────────
@@ -127,7 +125,7 @@ export class BrightDataSocialAdapter implements SocialAdapter {
     url,
     limit = 10,
   }: SocialProfileQueryParams): Promise<SocialProfilesResponse> {
-    requireToken();
+    await requireToken();
 
     const profileType = (type === 'company' || type === 'person') ? type : 'person';
     const datasetId = getDatasetId(type);

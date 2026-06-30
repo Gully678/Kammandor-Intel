@@ -6,7 +6,7 @@
  *   GET  https://api.brightdata.com/datasets/v3/progress/{snapshot_id}
  *   GET  https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}?format=json
  *
- * Auth: Bearer BRIGHTDATA_API_TOKEN
+ * Auth: Bearer BRIGHTDATA_API_KEY
  *
  * Dataset IDs are supplied via environment variables (founder must configure):
  *   BRIGHTDATA_DS_GOOGLE_REVIEWS   — Bright Data dataset_id for Google reviews
@@ -27,6 +27,7 @@
 
 import type { ReviewsAdapter, ReviewsResponse, ReviewsQueryParams, ReviewRecord } from '../../index';
 import { triggerAndFetch } from '../../../brightdata/client';
+import { getSecretOrThrow } from '../../../secrets';
 
 // ── Dataset ID resolution ────────────────────────────────────────────────────
 // Founders must supply these env vars for each platform they wish to use.
@@ -37,19 +38,16 @@ const DS_MAP: Record<string, string | undefined> = {
   yelp:       process.env.BRIGHTDATA_DS_YELP_REVIEWS,
 };
 
-function requireToken(): void {
-  if (!process.env.BRIGHTDATA_API_TOKEN) {
-    throw new Error(
-      'provider key required: set BRIGHTDATA_API_TOKEN for brightdata provider'
-    );
-  }
+async function requireToken(): Promise<void> {
+  // Validate key is present (throws with clear message if not)
+  await getSecretOrThrow('BRIGHTDATA_API_KEY');
 }
 
 export class BrightDataReviewsAdapter implements ReviewsAdapter {
   readonly name = 'brightdata';
 
   async getReviews({ entity, platform = 'google', limit = 25 }: ReviewsQueryParams): Promise<ReviewsResponse> {
-    requireToken();
+    await requireToken();
 
     const slug = platform.toLowerCase();
     const datasetId = DS_MAP[slug];

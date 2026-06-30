@@ -59,7 +59,7 @@ import { BrightDataSocialAdapter } from './providers/brightdata';
  * Resolve the active social adapter.
  * SOCIAL_PROVIDER env selects provider; defaults to 'brightdata'.
  *
- * 'brightdata' — requires BRIGHTDATA_API_TOKEN + BRIGHTDATA_DS_LI_* dataset IDs
+ * 'brightdata' — requires BRIGHTDATA_API_KEY + BRIGHTDATA_DS_LI_* dataset IDs
  */
 export function resolveSocialAdapter(): SocialAdapter {
   const p = (process.env.SOCIAL_PROVIDER ?? 'brightdata').toLowerCase();

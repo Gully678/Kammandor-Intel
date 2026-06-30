@@ -742,7 +742,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
           </div>
           {profiles.length === 0 && (
             <div className="text-[10px] font-mono text-[var(--text-muted)] py-2">
-              No profiles returned. Check BRIGHTDATA_API_TOKEN and BRIGHTDATA_DS_LI_* env vars are configured.
+              No profiles returned. Check BRIGHTDATA_API_KEY and BRIGHTDATA_DS_LI_* env vars are configured.
             </div>
           )}
           <div className="space-y-1.5 max-h-96 overflow-y-auto pr-1">

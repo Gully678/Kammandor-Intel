@@ -16,23 +16,19 @@
  *        Synchronous path (≤20 URLs); returns result array directly.
  *        Response: JSON array of result records (same shape as snapshot fetch)
  *
- * Auth: Bearer token — Authorization: Bearer BRIGHTDATA_API_TOKEN
+ * Auth: Bearer token — Authorization: Bearer BRIGHTDATA_API_KEY
  *
  * This is a licensed API client only. Bright Data handles proxy rotation,
  * anti-bot infrastructure, and parsing as part of their licensed data product.
  * Do NOT add any scraping/CAPTCHA-bypass logic here.
  */
 
+import { getSecretOrThrow } from '../secrets';
+
 const BD_BASE = 'https://api.brightdata.com';
 
-function requireToken(): string {
-  const token = process.env.BRIGHTDATA_API_TOKEN;
-  if (!token) {
-    throw new Error(
-      'provider key required: set BRIGHTDATA_API_TOKEN for brightdata provider'
-    );
-  }
-  return token;
+async function requireToken(): Promise<string> {
+  return getSecretOrThrow('BRIGHTDATA_API_KEY');
 }
 
 function bearerHeaders(token: string): HeadersInit {
@@ -59,7 +55,7 @@ export async function triggerCollection(
   datasetId: string,
   inputs: Record<string, unknown>[],
 ): Promise<BrightDataTriggerResult> {
-  const token = requireToken();
+  const token = await requireToken();
   const url = `${BD_BASE}/datasets/v3/trigger?dataset_id=${encodeURIComponent(datasetId)}&format=json`;
 
   const res = await fetch(url, {
@@ -87,7 +83,7 @@ export type BrightDataSnapshotStatus = 'collecting' | 'digesting' | 'ready' | 'f
  * GET /datasets/v3/progress/{snapshotId}
  */
 export async function pollSnapshot(snapshotId: string): Promise<BrightDataSnapshotStatus> {
-  const token = requireToken();
+  const token = await requireToken();
   const url = `${BD_BASE}/datasets/v3/progress/${encodeURIComponent(snapshotId)}`;
 
   const res = await fetch(url, {
@@ -109,7 +105,7 @@ export async function pollSnapshot(snapshotId: string): Promise<BrightDataSnapsh
 export async function fetchSnapshotResults(
   snapshotId: string,
 ): Promise<Record<string, unknown>[]> {
-  const token = requireToken();
+  const token = await requireToken();
   const url = `${BD_BASE}/datasets/v3/snapshot/${encodeURIComponent(snapshotId)}?format=json`;
 
   const res = await fetch(url, {
@@ -162,7 +158,7 @@ export async function syncScrape(
   datasetId: string,
   inputs: Record<string, unknown>[],
 ): Promise<Record<string, unknown>[]> {
-  const token = requireToken();
+  const token = await requireToken();
   const url = `${BD_BASE}/datasets/v3/scrape?dataset_id=${encodeURIComponent(datasetId)}&format=json`;
 
   const res = await fetch(url, {

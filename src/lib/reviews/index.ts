@@ -65,8 +65,8 @@ import { ApifyAdapter }             from './providers/aggregators/apify';
  * 'g2'                 — requires G2_API_TOKEN
  * 'google-places'      — requires GOOGLE_PLACES_KEY (NO-STORE: Google ToS)
  * 'yelp'               — requires YELP_API_KEY (≤24 h cache)
- * 'dataforseo'         — requires DATAFORSEO_LOGIN + DATAFORSEO_PASSWORD
- * 'brightdata'         — requires BRIGHTDATA_API_TOKEN + BRIGHTDATA_DS_* dataset IDs
+ * 'dataforseo'         — requires DATAFORSEO_LOGIN + DATAFORSEO_API_KEY
+ * 'brightdata'         — requires BRIGHTDATA_API_KEY + BRIGHTDATA_DS_* dataset IDs
  * 'outscraper'         — requires OUTSCRAPER_KEY
  * 'serpapi'            — requires SERPAPI_KEY
  * 'apify'              — requires APIFY_TOKEN

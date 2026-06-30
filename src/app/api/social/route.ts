@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
         {
           error: 'provider key required',
           detail: msg,
-          hint: 'Set BRIGHTDATA_API_TOKEN and the relevant BRIGHTDATA_DS_LI_* env vars.',
+          hint: 'Set BRIGHTDATA_API_KEY and the relevant BRIGHTDATA_DS_LI_* env vars.',
         },
         { status: 422 }
       );
