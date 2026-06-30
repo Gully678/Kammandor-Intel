@@ -8,9 +8,12 @@ Tier mapping:
   critical: synthesize, dossier, critical
 
 Provider preference per tier (first key that resolves wins):
-  fast:     openai → google
-  balanced: zhipu  → google
-  critical: anthropic → zhipu
+  fast:     openai → google → openrouter (fallback)
+  balanced: zhipu  → google → openrouter (fallback)
+  critical: anthropic → zhipu → openrouter (fallback)
+
+openrouter acts as universal fallback when preferred provider keys are absent
+but OPENROUTER_API_KEY is set.
 
 route_complete() calls the provider REST API via httpx.
 Raises RuntimeError (503-worthy) if no provider key is available.
@@ -73,10 +76,11 @@ def providers_for_tier(tier: TaskTier) -> list[str]:
 # ---------------------------------------------------------------------------
 
 _PROVIDER_KEY_ENV: dict[str, str] = {
-    "anthropic": "ANTHROPIC_API_KEY",
-    "openai":    "OPENAI_API_KEY",
-    "google":    "GOOGLE_API_KEY",
-    "zhipu":     "ZHIPU_API_KEY",
+    "anthropic":   "ANTHROPIC_API_KEY",
+    "openai":      "OPENAI_API_KEY",
+    "google":      "GOOGLE_API_KEY",
+    "zhipu":       "ZHIPU_API_KEY",
+    "openrouter":  "OPENROUTER_API_KEY",
 }
 
 # ---------------------------------------------------------------------------
@@ -173,11 +177,41 @@ async def _call_zhipu(system: str, prompt: str) -> str:
     return data["choices"][0]["message"]["content"]
 
 
+async def _call_openrouter(system: str, prompt: str) -> str:
+    """
+    Universal fallback via OpenRouter.
+    POSTs to https://openrouter.ai/api/v1/chat/completions (OpenAI-compatible).
+    Uses OPENROUTER_API_KEY and AI_MODEL_OPENROUTER env vars.
+    """
+    from .config import get_secret_or_raise
+    key = await get_secret_or_raise("OPENROUTER_API_KEY")
+    mid = model_id("openrouter")
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type":  "application/json",
+            },
+            json={
+                "model":    mid,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user",   "content": prompt},
+                ],
+            },
+        )
+    resp.raise_for_status()
+    data = resp.json()
+    return data["choices"][0]["message"]["content"]
+
+
 _PROVIDER_CALLERS = {
-    "anthropic": _call_anthropic,
-    "openai":    _call_openai,
-    "google":    _call_google,
-    "zhipu":     _call_zhipu,
+    "anthropic":  _call_anthropic,
+    "openai":     _call_openai,
+    "google":     _call_google,
+    "zhipu":      _call_zhipu,
+    "openrouter": _call_openrouter,
 }
 
 # ---------------------------------------------------------------------------
@@ -226,6 +260,20 @@ async def route_complete(
             }
         except Exception as exc:
             errors.append(f"{provider_name}: {exc}")
+
+    # Primary providers exhausted — try OpenRouter as universal fallback
+    or_key = await get_secret("OPENROUTER_API_KEY")
+    if or_key and "openrouter" not in providers:
+        try:
+            text = await _call_openrouter(system, prompt)
+            return {
+                "text":     text,
+                "provider": "openrouter",
+                "tier":     tier,
+                "model":    model_id("openrouter"),
+            }
+        except Exception as exc:
+            errors.append(f"openrouter (fallback): {exc}")
 
     # All providers exhausted
     raise RuntimeError(

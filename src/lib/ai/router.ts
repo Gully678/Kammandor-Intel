@@ -10,10 +10,11 @@
  */
 
 import { getSecret } from '@/lib/secrets';
-import { AnthropicProvider } from './providers/anthropic';
-import { OpenAIProvider }    from './providers/openai';
-import { GoogleProvider }    from './providers/google';
-import { ZhipuProvider }     from './providers/zhipu';
+import { AnthropicProvider }   from './providers/anthropic';
+import { OpenAIProvider }     from './providers/openai';
+import { GoogleProvider }     from './providers/google';
+import { ZhipuProvider }      from './providers/zhipu';
+import { OpenRouterProvider } from './providers/openrouter';
 import { tierForTask, providersForTier, type TaskTier } from './policy';
 import type { ChatProvider, ChatOptions } from './providers/types';
 
@@ -22,18 +23,20 @@ import type { ChatProvider, ChatOptions } from './providers/types';
 // ---------------------------------------------------------------------------
 
 const PROVIDER_REGISTRY: Record<string, ChatProvider> = {
-  anthropic: new AnthropicProvider(),
-  openai:    new OpenAIProvider(),
-  google:    new GoogleProvider(),
-  zhipu:     new ZhipuProvider(),
+  anthropic:  new AnthropicProvider(),
+  openai:     new OpenAIProvider(),
+  google:     new GoogleProvider(),
+  zhipu:      new ZhipuProvider(),
+  openrouter: new OpenRouterProvider(),
 };
 
 // Env var names that hold each provider's key (for key-presence probe)
 const PROVIDER_KEY_ENV: Record<string, string> = {
-  anthropic: 'ANTHROPIC_API_KEY',
-  openai:    'OPENAI_API_KEY',
-  google:    'GOOGLE_API_KEY',
-  zhipu:     'ZHIPU_API_KEY',
+  anthropic:  'ANTHROPIC_API_KEY',
+  openai:     'OPENAI_API_KEY',
+  google:     'GOOGLE_API_KEY',
+  zhipu:      'ZHIPU_API_KEY',
+  openrouter: 'OPENROUTER_API_KEY',
 };
 
 // ---------------------------------------------------------------------------
@@ -93,6 +96,23 @@ export async function routeComplete(opts: RouteOptions): Promise<RouteResult> {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`${providerName}: ${msg}`);
+    }
+  }
+
+  // Primary providers exhausted — try OpenRouter as universal fallback
+  if (!providers.includes('openrouter')) {
+    const orKey = await getSecret('OPENROUTER_API_KEY').catch(() => undefined);
+    if (orKey) {
+      const orProvider = PROVIDER_REGISTRY['openrouter'];
+      if (orProvider) {
+        try {
+          const result = await orProvider.complete(chatOpts);
+          return { ...result, tier };
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          errors.push(`openrouter (fallback): ${msg}`);
+        }
+      }
     }
   }
 

@@ -112,10 +112,11 @@ def model_id(provider: str) -> str:
     Falls back to sensible defaults.
     """
     defaults = {
-        "anthropic": "claude-opus-4-5",
-        "openai":    "gpt-4o-mini",
-        "google":    "gemini-1.5-flash",
-        "zhipu":     "glm-4-flash",
+        "anthropic":  "claude-opus-4-5",
+        "openai":     "gpt-4o-mini",
+        "google":     "gemini-1.5-flash",
+        "zhipu":      "glm-4-flash",
+        "openrouter": "openai/gpt-4o-mini",
     }
-    env_key = f"AI_MODEL_{provider.upper()}"
+    env_key = f"AI_MODEL_{provider.upper()}"  # e.g. AI_MODEL_OPENROUTER
     return os.environ.get(env_key, defaults.get(provider, "unknown"))

@@ -51,10 +51,11 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 _PROVIDER_KEYS = {
-    "anthropic": "ANTHROPIC_API_KEY",
-    "openai":    "OPENAI_API_KEY",
-    "google":    "GOOGLE_API_KEY",
-    "zhipu":     "ZHIPU_API_KEY",
+    "anthropic":  "ANTHROPIC_API_KEY",
+    "openai":     "OPENAI_API_KEY",
+    "google":     "GOOGLE_API_KEY",
+    "zhipu":      "ZHIPU_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
 }
 
 
@@ -115,12 +116,17 @@ async def analyze(body: AnalyzeRequest) -> AnalyzeResponse:
             has_any_key = True
             break
 
+    # Also accept openrouter as a valid key for the synthesize tier
+    if not has_any_key:
+        or_key = await get_secret("OPENROUTER_API_KEY")
+        has_any_key = bool(or_key)
+
     if not has_any_key:
         raise HTTPException(
             status_code=503,
             detail=(
                 "No AI provider keys configured. "
-                "Set at least one of ANTHROPIC_API_KEY / ZHIPU_API_KEY on Render."
+                "Set at least one of ANTHROPIC_API_KEY / ZHIPU_API_KEY / OPENROUTER_API_KEY on Render."
             ),
         )
 
