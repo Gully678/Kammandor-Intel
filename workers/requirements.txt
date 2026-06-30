@@ -1,0 +1,23 @@
+# KINTEL Workers — Python dependency manifest
+# Deployed on Render; Vercel ignores this directory.
+#
+# Heavy AI libs (langgraph, langchain-core) are lazy-imported inside
+# functions so the FastAPI app can import cleanly without them installed
+# in dev/test environments.
+
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+
+# Data validation
+pydantic==2.10.4
+
+# HTTP client (used by MoE router for provider REST calls)
+httpx==0.27.2
+
+# Supabase client (used in graph nodes — lazy-imported)
+supabase==2.10.0
+
+# AI orchestration — installed by Render, lazy-imported in code
+langgraph==0.2.60
+langchain-core==0.3.28
