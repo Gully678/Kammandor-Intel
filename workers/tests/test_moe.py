@@ -19,40 +19,40 @@ from unittest.mock import AsyncMock, patch, MagicMock
 # ---------------------------------------------------------------------------
 
 def test_tier_for_task_extract():
-    from workers.app.moe import tier_for_task
+    from app.moe import tier_for_task
     assert tier_for_task("extract") == "fast"
 
 def test_tier_for_task_analyze():
-    from workers.app.moe import tier_for_task
+    from app.moe import tier_for_task
     assert tier_for_task("analyze") == "balanced"
 
 def test_tier_for_task_dossier():
-    from workers.app.moe import tier_for_task
+    from app.moe import tier_for_task
     assert tier_for_task("dossier") == "critical"
 
 def test_tier_for_task_synthesize():
-    from workers.app.moe import tier_for_task
+    from app.moe import tier_for_task
     assert tier_for_task("synthesize") == "critical"
 
 def test_tier_for_task_unknown_falls_back_to_balanced():
-    from workers.app.moe import tier_for_task
+    from app.moe import tier_for_task
     assert tier_for_task("unknown_task_xyz") == "balanced"
 
 def test_providers_for_tier_fast():
-    from workers.app.moe import providers_for_tier
+    from app.moe import providers_for_tier
     assert providers_for_tier("fast") == ["openai", "google"]
 
 def test_providers_for_tier_balanced():
-    from workers.app.moe import providers_for_tier
+    from app.moe import providers_for_tier
     assert providers_for_tier("balanced") == ["zhipu", "google"]
 
 def test_providers_for_tier_critical():
-    from workers.app.moe import providers_for_tier
+    from app.moe import providers_for_tier
     result = providers_for_tier("critical")
     assert result[0] == "anthropic", f"Expected anthropic first, got {result}"
 
 def test_providers_for_tier_critical_full_list():
-    from workers.app.moe import providers_for_tier
+    from app.moe import providers_for_tier
     assert providers_for_tier("critical") == ["anthropic", "zhipu"]
 
 
@@ -61,7 +61,7 @@ def test_providers_for_tier_critical_full_list():
 # ---------------------------------------------------------------------------
 
 def test_propose_create_entity_returns_dict():
-    from workers.app.ontology import propose_create_entity
+    from app.ontology import propose_create_entity
     result = propose_create_entity(
         tenant_id=   "t1",
         entity={
@@ -81,7 +81,7 @@ def test_propose_create_entity_returns_dict():
 
 
 def test_propose_create_link_returns_dict():
-    from workers.app.ontology import propose_create_link
+    from app.ontology import propose_create_link
     result = propose_create_link(
         tenant_id=   "t1",
         link={
@@ -99,7 +99,7 @@ def test_propose_create_link_returns_dict():
 
 
 def test_propose_update_returns_dict():
-    from workers.app.ontology import propose_update
+    from app.ontology import propose_update
     result = propose_update(
         tenant_id=   "t1",
         kind=        "update_entity",
@@ -119,7 +119,7 @@ def test_propose_helpers_never_write_to_db():
     Governance test: proposal helpers must NOT call any DB client.
     They return plain dicts.  The graph's persist node is the only writer.
     """
-    import workers.app.ontology as ontology_module
+    import app.ontology as ontology_module
     import inspect
 
     # Verify propose helpers don't import supabase at module level
@@ -175,8 +175,8 @@ async def test_persist_node_is_only_writer():
     # Patch supabase in the graph module
     with patch.dict(sys.modules, {"supabase": fake_supabase}):
         # Import graph fresh for this test
-        if "workers.app.graph" in sys.modules:
-            del sys.modules["workers.app.graph"]
+        if "app.graph" in sys.modules:
+            del sys.modules["app.graph"]
         # Also need langgraph mocked
         fake_langgraph = MagicMock()
         # Create a StateGraph that just stores the nodes and edges
@@ -228,9 +228,9 @@ async def test_persist_node_is_only_writer():
             "langgraph": fake_langgraph_module,
             "langgraph.graph": fake_langgraph_module.graph,
         }):
-            if "workers.app.graph" in sys.modules:
-                del sys.modules["workers.app.graph"]
-            from workers.app.graph import run_analysis
+            if "app.graph" in sys.modules:
+                del sys.modules["app.graph"]
+            from app.graph import run_analysis
 
             import os
             os.environ["SUPABASE_URL"] = "http://fake"
