@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plane, Satellite, Sun, AlertTriangle, Camera,
   CloudLightning, Ship, Network, Database, Ghost,
-  Flame, Tv, Radio, Mountain, Anchor, Radar, TrendingDown
+  Flame, Tv, Radio, Mountain, Anchor, Radar, TrendingDown, BarChart2
 } from 'lucide-react';
 
 interface LayerPanelProps {
@@ -102,6 +102,16 @@ const LAYER_GROUPS = [
     icon: TrendingDown,
     layers: [
       { key: 'world_bank_risk', label: 'Country Risk (WB)', dataKey: 'countries' },
+      { key: 'trade_flows', label: 'Trade Flows (Comtrade)', dataKey: 'trade_flows' },
+    ],
+  },
+  {
+    label: 'MACRO',
+    fullLabel: 'MACRO & DILIGENCE',
+    icon: BarChart2,
+    layers: [
+      { key: 'fred_macro', label: 'Macro Series (FRED)', dataKey: 'fred_data' },
+      { key: 'companies_ubo', label: 'Companies House UBO', dataKey: 'companies_data' },
     ],
   },
   {

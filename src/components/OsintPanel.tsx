@@ -10,7 +10,7 @@ import {
   Wifi, Lock, MapPin, Bug, Code, Layers, Network, Fingerprint,
   CheckCircle, XCircle, Clock, ExternalLink, Crosshair,
   Maximize2, Minimize2, Gavel, Bitcoin, Phone, Terminal, ShieldAlert,
-  Building2, BookOpen, IdCard, Star, Users
+  Building2, BookOpen, IdCard, Star, Users, BarChart2, TrendingUp
 } from 'lucide-react';
 import { ipToNumber, numberToIp, calculateSubnetStart, classifyDevice, assessRisk, batchFetch, ShodanInternetDBResponse, SweepDevice } from '@/lib/osint-utils';
 import { FLAGS } from '@/config/featureFlags';
@@ -35,6 +35,8 @@ const TABS = [
   { id: 'gleif', label: 'LEI LOOKUP', icon: IdCard, placeholder: 'Legal entity name or LEI code', color: '#D4AF37' },
   { id: 'reviews', label: 'REVIEWS', icon: Star, placeholder: 'Brand name or App Store ID (e.g. 284882215)', color: '#FF6B35' },
   { id: 'social', label: 'SOCIAL & PEOPLE', icon: Users, placeholder: 'Company or person name / LinkedIn URL', color: '#0077B5' },
+  { id: 'companies-house', label: 'COMPANIES HOUSE', icon: Building2, placeholder: 'Company name or UK company number', color: '#CF9FFF' },
+  { id: 'fred', label: 'MACRO (FRED)', icon: BarChart2, placeholder: 'Series ID (e.g. DGS10, CPIAUCSL) or keyword search', color: '#F5A623' },
 ];
 
 // Tabs gated behind activeReconEnabled flag
@@ -216,6 +218,21 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
           url = isUrl
             ? `/api/social?type=${socialType}&url=${encodeURIComponent(query)}`
             : `/api/social?type=${socialType}&query=${encodeURIComponent(query)}`;
+          break;
+        }
+        case 'companies-house': {
+          const isNum = /^[A-Z0-9]{6,8}$/i.test(query.trim());
+          url = isNum
+            ? `/api/companies-house?number=${encodeURIComponent(query.trim())}`
+            : `/api/companies-house?q=${encodeURIComponent(query)}`;
+          break;
+        }
+        case 'fred': {
+          // If query looks like a FRED series ID (short uppercase alphanum), fetch observations; else search
+          const isSeries = /^[A-Z][A-Z0-9]{1,24}$/i.test(query.trim()) && !query.trim().includes(' ');
+          url = isSeries
+            ? `/api/fred?series_id=${encodeURIComponent(query.trim().toUpperCase())}`
+            : `/api/fred?q=${encodeURIComponent(query)}`;
           break;
         }
         case 'shodan': url = `https://internetdb.shodan.io/${encodeURIComponent(query)}`; break;
@@ -773,6 +790,212 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
               </div>
             ))}
           </div>
+        </div>
+      );
+    }
+
+    // ── COMPANIES HOUSE (UBO / Officers) ──
+    if (activeTab === 'companies-house') {
+      if (!results) return null;
+      const r = results as any;
+      const isSearch = Array.isArray(r.results);
+      const chColor = '#CF9FFF';
+      if (isSearch) {
+        const items: any[] = r.results || [];
+        return (
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Building2 className="w-3.5 h-3.5" style={{ color: chColor }} />
+              <span className="hud-text text-[11px] font-bold" style={{ color: chColor }}>COMPANIES HOUSE (UK)</span>
+            </div>
+            <ResultRow label="Results" value={items.length > 0 ? String(r.total ?? items.length) : 'No matches'} color={chColor} />
+            {items.length === 0 && (
+              <div className="text-[10px] font-mono text-[var(--text-muted)] py-2">No UK companies matched. Try the exact registered name or company number.</div>
+            )}
+            {items.map((c: any, i: number) => (
+              <div key={i} className="mt-2 p-2 rounded border space-y-0.5" style={{ borderColor: `${chColor}25`, background: `${chColor}08` }}>
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-[11px] font-mono font-bold truncate flex-1" style={{ color: chColor }}>{c.name}</span>
+                  <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded border flex-shrink-0 ${c.status === 'active' ? 'bg-green-500/15 text-green-400 border-green-500/30' : 'bg-red-500/15 text-red-400 border-red-500/30'}`}>
+                    {c.status?.toUpperCase() || 'UNKNOWN'}
+                  </span>
+                </div>
+                <div className="text-[9px] font-mono text-[var(--text-muted)]">#{c.companyNumber} · {c.type}</div>
+                {c.address && <div className="text-[9px] font-mono text-[var(--text-secondary)] truncate">{c.address}</div>}
+                {c.dateIncorp && <div className="text-[9px] font-mono text-[var(--text-muted)]">Incorporated: {c.dateIncorp}</div>}
+                <button
+                  onClick={() => { setQuery(c.companyNumber); setResults(null); }}
+                  className="text-[8px] font-mono hover:underline mt-0.5"
+                  style={{ color: chColor }}
+                >
+                  View officers + PSC →
+                </button>
+              </div>
+            ))}
+          </div>
+        );
+      }
+      // Detail view
+      const co = r.company as any;
+      const officers: any[] = r.officers || [];
+      const psc: any[] = r.psc || [];
+      return (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 mb-1">
+            <Building2 className="w-3.5 h-3.5" style={{ color: chColor }} />
+            <span className="hud-text text-[11px] font-bold" style={{ color: chColor }}>COMPANIES HOUSE — DETAIL</span>
+          </div>
+          {co && (
+            <div className="p-2 rounded border space-y-0.5" style={{ borderColor: `${chColor}25`, background: `${chColor}08` }}>
+              <div className="text-[11px] font-mono font-bold" style={{ color: chColor }}>{co.company_name}</div>
+              <div className="text-[9px] font-mono text-[var(--text-muted)]">#{co.company_number} · {co.company_type} · {co.company_status?.toUpperCase()}</div>
+              {co.date_of_creation && <div className="text-[9px] font-mono text-[var(--text-muted)]">Incorporated: {co.date_of_creation}</div>}
+              {co.registered_office_address && (
+                <div className="text-[9px] font-mono text-[var(--text-secondary)]">
+                  {[co.registered_office_address?.premises, co.registered_office_address?.address_line_1, co.registered_office_address?.locality, co.registered_office_address?.postal_code].filter(Boolean).join(', ')}
+                </div>
+              )}
+              <a href={`https://find-and-update.company-information.service.gov.uk/company/${co.company_number}`} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[8px] font-mono hover:underline mt-0.5" style={{ color: chColor }}>
+                <ExternalLink className="w-2.5 h-2.5" /> View on Companies House
+              </a>
+            </div>
+          )}
+          {officers.length > 0 && (
+            <div>
+              <div className="text-[9px] font-mono font-bold text-[var(--text-muted)] uppercase mb-1">Officers ({officers.length})</div>
+              {officers.map((o: any, i: number) => (
+                <div key={i} className="mt-1 p-1.5 rounded border text-[9px] font-mono" style={{ borderColor: `${chColor}20`, background: `${chColor}06` }}>
+                  <span className="font-bold text-[var(--text-primary)]">{o.name}</span>
+                  <span className="text-[var(--text-muted)] ml-2">{o.role}</span>
+                  {o.appointed && <span className="text-[var(--text-muted)] ml-2">from {o.appointed}</span>}
+                  {o.resigned && <span className="text-red-400 ml-2">(resigned {o.resigned})</span>}
+                  {o.nationality && <span className="text-[var(--text-muted)] ml-2">{o.nationality}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+          {psc.length > 0 && (
+            <div>
+              <div className="text-[9px] font-mono font-bold text-[var(--text-muted)] uppercase mb-1">Persons with Significant Control ({psc.length})</div>
+              {psc.map((p: any, i: number) => (
+                <div key={i} className="mt-1 p-1.5 rounded border text-[9px] font-mono space-y-0.5" style={{ borderColor: `${chColor}20`, background: `${chColor}06` }}>
+                  <div className="font-bold" style={{ color: chColor }}>{p.name}</div>
+                  <div className="text-[var(--text-muted)]">{p.kind}</div>
+                  {p.naturesOfControl && <div className="text-[var(--text-secondary)] text-[8px]">{p.naturesOfControl}</div>}
+                  {p.nationality && <div className="text-[var(--text-muted)]">{p.nationality}{p.countryOfRes ? ` · ${p.countryOfRes}` : ''}</div>}
+                  {p.notifiedOn && <div className="text-[var(--text-muted)] text-[8px]">Notified: {p.notifiedOn}</div>}
+                  {p.ceasedOn && <div className="text-red-400 text-[8px]">Ceased: {p.ceasedOn}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+          {officers.length === 0 && psc.length === 0 && (
+            <div className="text-[9px] font-mono text-[var(--text-muted)]">No officers or PSC records returned.</div>
+          )}
+        </div>
+      );
+    }
+
+    // ── FRED MACRO ──
+    if (activeTab === 'fred') {
+      if (!results) return null;
+      const r = results as any;
+      const fredColor = '#F5A623';
+      if (r.error) {
+        return (
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <BarChart2 className="w-3.5 h-3.5" style={{ color: fredColor }} />
+              <span className="hud-text text-[11px] font-bold" style={{ color: fredColor }}>MACRO — FRED</span>
+            </div>
+            <div className="text-[10px] font-mono text-red-400 py-2">{r.error}</div>
+          </div>
+        );
+      }
+      // Search results
+      if (Array.isArray(r.results)) {
+        const items: any[] = r.results;
+        return (
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <BarChart2 className="w-3.5 h-3.5" style={{ color: fredColor }} />
+              <span className="hud-text text-[11px] font-bold" style={{ color: fredColor }}>FRED SERIES SEARCH</span>
+            </div>
+            <ResultRow label="Results" value={items.length > 0 ? String(items.length) : 'No matches'} color={fredColor} />
+            {items.map((s: any, i: number) => (
+              <div key={i} className="mt-2 p-2 rounded border space-y-0.5" style={{ borderColor: `${fredColor}25`, background: `${fredColor}08` }}>
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-[10px] font-mono font-bold leading-tight flex-1 text-[var(--text-primary)]">{s.title}</span>
+                  <span className="text-[8px] font-mono px-1.5 py-0.5 rounded flex-shrink-0" style={{ color: fredColor, background: `${fredColor}20`, border: `1px solid ${fredColor}40` }}>{s.id}</span>
+                </div>
+                <div className="text-[8px] font-mono text-[var(--text-muted)]">{s.units} · {s.frequency}</div>
+                <button
+                  onClick={() => { setQuery(s.id); setResults(null); }}
+                  className="text-[8px] font-mono hover:underline mt-0.5"
+                  style={{ color: fredColor }}
+                >
+                  Load observations →
+                </button>
+              </div>
+            ))}
+          </div>
+        );
+      }
+      // Observations view
+      const series = r.series || { id: query, title: query };
+      const obs: any[] = Array.isArray(r.observations) ? r.observations : [];
+      const validObs = obs.filter((o: any) => o.value !== null);
+      const values = validObs.map((o: any) => o.value as number);
+      const minV = values.length ? Math.min(...values) : 0;
+      const maxV = values.length ? Math.max(...values) : 1;
+      const recent = validObs.slice(0, 12);
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 mb-1">
+            <BarChart2 className="w-3.5 h-3.5" style={{ color: fredColor }} />
+            <span className="hud-text text-[11px] font-bold" style={{ color: fredColor }}>MACRO — FRED</span>
+          </div>
+          <div className="p-2 rounded border space-y-0.5" style={{ borderColor: `${fredColor}25`, background: `${fredColor}08` }}>
+            <div className="text-[10px] font-mono font-bold text-[var(--text-primary)]">{series.title || series.id}</div>
+            <div className="text-[8px] font-mono text-[var(--text-muted)]">
+              {series.id}{series.units ? ` · ${series.units}` : ''}{series.frequency ? ` · ${series.frequency}` : ''}
+            </div>
+            {series.lastUpdated && <div className="text-[8px] font-mono text-[var(--text-muted)]">Updated: {series.lastUpdated?.slice(0,10)}</div>}
+          </div>
+          {/* Sparkline bars */}
+          {recent.length > 0 && (
+            <div className="p-2 rounded border" style={{ borderColor: `${fredColor}20`, background: 'var(--bg-secondary)' }}>
+              <div className="text-[8px] font-mono text-[var(--text-muted)] mb-1">Recent observations (newest first)</div>
+              <div className="flex items-end gap-0.5 h-12">
+                {recent.slice().reverse().map((o: any, i: number) => {
+                  const pct = maxV > minV ? ((o.value - minV) / (maxV - minV)) * 100 : 50;
+                  return (
+                    <div key={i} title={`${o.date}: ${o.value}`}
+                      className="flex-1 rounded-sm transition-all"
+                      style={{ height: `${Math.max(4, pct)}%`, background: fredColor, opacity: 0.7 + (i / recent.length) * 0.3 }}
+                    />
+                  );
+                })}
+              </div>
+              <div className="flex justify-between mt-0.5">
+                <span className="text-[7px] font-mono text-[var(--text-muted)]">{recent[recent.length-1]?.date?.slice(0,7)}</span>
+                <span className="text-[7px] font-mono text-[var(--text-muted)]">{recent[0]?.date?.slice(0,7)}</span>
+              </div>
+            </div>
+          )}
+          <div className="max-h-48 overflow-y-auto styled-scrollbar space-y-0.5">
+            {recent.map((o: any, i: number) => (
+              <div key={i} className="flex justify-between text-[9px] font-mono px-1">
+                <span className="text-[var(--text-muted)]">{o.date}</span>
+                <span style={{ color: fredColor }}>{o.value !== null ? Number(o.value).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '—'}</span>
+              </div>
+            ))}
+          </div>
+          <a href={`https://fred.stlouisfed.org/series/${series.id}`} target="_blank" rel="noreferrer"
+            className="inline-flex items-center gap-1 text-[8px] font-mono hover:underline" style={{ color: fredColor }}>
+            <ExternalLink className="w-2.5 h-2.5" /> View on FRED
+          </a>
         </div>
       );
     }
