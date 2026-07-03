@@ -200,3 +200,58 @@ describe('buildProposedEditsFromRecords', () => {
     expect(skipped).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// v2 §12.4 — evaluation persisted at propose time.
+//
+// buildProposedEditsFromRecords must run the AIP eval gate
+// (src/lib/ai/analyze.ts's evaluate()) over every proposal it builds and
+// attach the result to the row's `evaluation` field, which the ingest route
+// then inserts into intel.proposed_edit.evaluation (migrations/intel/0015).
+// ---------------------------------------------------------------------------
+
+describe('buildProposedEditsFromRecords — evaluation persisted at propose time (v2 §12.4)', () => {
+  it('attaches a structured evaluation result to every built proposal', () => {
+    const { edits } = buildProposedEditsFromRecords('gleif', TENANT_ID, [GLEIF_RECORD]);
+    expect(edits.length).toBeGreaterThan(0);
+
+    for (const edit of edits) {
+      expect(edit.evaluation).toBeDefined();
+      const evaluation = edit.evaluation as { passed: boolean; score: number; checks: string[] };
+      expect(typeof evaluation.passed).toBe('boolean');
+      expect(typeof evaluation.score).toBe('number');
+      expect(Array.isArray(evaluation.checks)).toBe(true);
+      expect(evaluation.checks.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('well-formed connector records evaluate as passed, with links grounded against the same record\'s entities', () => {
+    const { edits } = buildProposedEditsFromRecords('gleif', TENANT_ID, [GLEIF_RECORD]);
+
+    const linkEdits = edits.filter(e => e.kind === 'create_link');
+    expect(linkEdits.length).toBeGreaterThan(0);
+
+    for (const edit of edits) {
+      const evaluation = edit.evaluation as { passed: boolean; checks: string[] };
+      expect(evaluation.passed).toBe(true);
+    }
+
+    // Grounding must be real (checked against the record's own entity ids),
+    // not merely "well-formed UUID": the eval gate emits an explicit
+    // grounded PASS check for each link endpoint when knownEntityIds is
+    // supplied.
+    for (const linkEdit of linkEdits) {
+      const evaluation = linkEdit.evaluation as { checks: string[] };
+      expect(evaluation.checks.some(c => /grounded/.test(c))).toBe(true);
+    }
+  });
+
+  it('does not attach an evaluation shaped like a write to any ontology table (still a proposal row)', () => {
+    const { edits } = buildProposedEditsFromRecords('world-bank', TENANT_ID, [WORLD_BANK_RECORD]);
+    assertAllAreGovernedProposals(edits);
+    for (const edit of edits) {
+      expect(edit.status).toBe('pending');
+      expect(edit.evaluation).toBeDefined();
+    }
+  });
+});

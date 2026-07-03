@@ -28,6 +28,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browserClient';
+import { SOURCES, type LicenceClass } from '@/config/sources';
 
 interface ProposedEditRow {
   id:           string;
@@ -38,9 +39,176 @@ interface ProposedEditRow {
   rationale?:   string | null;
   status:       'pending' | 'approved' | 'rejected' | 'applied';
   created_at:   string;
+  /** Why a rejected proposal was turned down (v2 §12.4) — null while pending. */
+  reason?:      string | null;
+  /** Automatic-check result recorded when the proposal was created (v2 §12.4). */
+  evaluation?:  unknown;
 }
 
 type ActionState = 'idle' | 'pending' | 'error';
+
+// ---------------------------------------------------------------------------
+// Evaluation display — the automatic checks recorded when the proposal was
+// created (see src/lib/ai/analyze.ts's evaluate() and src/lib/ontology/
+// ingest.ts, which stores the result alongside the proposal). Shown in plain
+// language; the reviewer never needs to know how it is stored.
+// ---------------------------------------------------------------------------
+
+interface EvaluationDisplay {
+  passed: boolean;
+  score:  number;
+  checks: string[];
+}
+
+function isEvaluationDisplay(value: unknown): value is EvaluationDisplay {
+  if (typeof value !== 'object' || value === null) return false;
+  const rec = value as Record<string, unknown>;
+  return (
+    typeof rec.passed === 'boolean' &&
+    typeof rec.score === 'number' &&
+    Array.isArray(rec.checks) &&
+    rec.checks.every(c => typeof c === 'string')
+  );
+}
+
+type CheckOutcome = 'pass' | 'fail' | 'warn';
+
+function splitCheck(check: string): { outcome: CheckOutcome; text: string } {
+  if (check.startsWith('PASS: ')) return { outcome: 'pass', text: check.slice(6) };
+  if (check.startsWith('FAIL: ')) return { outcome: 'fail', text: check.slice(6) };
+  if (check.startsWith('WARN: ')) return { outcome: 'warn', text: check.slice(6) };
+  return { outcome: 'warn', text: check };
+}
+
+const CHECK_CHIP_CLASSES: Record<CheckOutcome, string> = {
+  pass: 'border-[var(--live,#0E9F6E)]/40 bg-[var(--live,#0E9F6E)]/10 text-[var(--live,#0E9F6E)]',
+  fail: 'border-red-400/50 bg-red-400/10 text-red-300',
+  warn: 'border-amber-400/50 bg-amber-400/10 text-amber-300',
+};
+
+const CHECK_CHIP_ICON: Record<CheckOutcome, string> = { pass: '\u2713', fail: '\u2715', warn: '!' };
+
+function EvaluationSection({ evaluation }: { evaluation: unknown }) {
+  if (!isEvaluationDisplay(evaluation)) return null;
+
+  return (
+    <section aria-label="Automatic checks" className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wide opacity-60">
+          Automatic checks
+        </h3>
+        <span
+          className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
+            evaluation.passed
+              ? CHECK_CHIP_CLASSES.pass
+              : CHECK_CHIP_CLASSES.fail
+          }`}
+        >
+          {evaluation.passed ? 'Passed' : 'Needs attention'}
+        </span>
+        <span className="text-xs opacity-50">
+          Quality score {Math.round(evaluation.score * 100)}%
+        </span>
+      </div>
+      <ul className="flex flex-wrap gap-1.5">
+        {evaluation.checks.map(check => {
+          const { outcome, text } = splitCheck(check);
+          return (
+            <li
+              key={check}
+              className={`rounded-full border px-2 py-0.5 text-[11px] leading-4 ${CHECK_CHIP_CLASSES[outcome]}`}
+            >
+              <span aria-hidden="true">{CHECK_CHIP_ICON[outcome]}</span> {text}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sources display — where each piece of proposed information came from.
+// Proposal payloads may carry a `provenance` array (source, licence, fetch
+// time, confidence, which field it supports); the source registry
+// (src/config/sources.ts) supplies the human label and default licence.
+// ---------------------------------------------------------------------------
+
+interface ProvenanceEntryDisplay {
+  source_key?:    string;
+  source_url?:    string;
+  fetched_at?:    string;
+  confidence?:    number;
+  licence_class?: LicenceClass;
+  licence_terms?: string;
+  property_path?: string;
+}
+
+const LICENCE_LABELS: Record<LicenceClass, string> = {
+  'licensed':           'Licensed data',
+  'public-attribution': 'Public \u2014 credit the source',
+  'public-open':        'Public \u2014 open use',
+  'proprietary':        'Proprietary',
+};
+
+function readProvenanceEntries(payload: Record<string, unknown>): ProvenanceEntryDisplay[] {
+  const raw = payload.provenance;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (entry): entry is ProvenanceEntryDisplay =>
+      typeof entry === 'object' && entry !== null,
+  );
+}
+
+function SourcesSection({ payload }: { payload: Record<string, unknown> }) {
+  const entries = readProvenanceEntries(payload);
+  if (entries.length === 0) return null;
+
+  return (
+    <section aria-label="Sources" className="space-y-1.5">
+      <h3 className="text-xs font-semibold uppercase tracking-wide opacity-60">Sources</h3>
+      <ul className="space-y-1.5">
+        {entries.map((entry, index) => {
+          const source        = SOURCES.find(s => s.key === entry.source_key);
+          const label         = source?.label ?? entry.source_key ?? 'Unknown source';
+          const licenceClass  = entry.licence_class ?? source?.licence.class;
+          const licenceTerms  = entry.licence_terms ?? source?.licence.terms;
+          const fetchedAt     = entry.fetched_at ? new Date(entry.fetched_at) : null;
+          const confidencePct =
+            typeof entry.confidence === 'number'
+              ? `${Math.round(entry.confidence * 100)}%`
+              : null;
+
+          return (
+            <li
+              key={`${entry.source_key ?? 'source'}-${entry.property_path ?? index}`}
+              className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded border border-[var(--card-border,#EAE2D2)]/10 bg-black/20 px-2 py-1.5 text-xs"
+            >
+              <span className="font-medium">{label}</span>
+              {licenceClass && (
+                <span
+                  title={licenceTerms ?? undefined}
+                  className="cursor-help rounded-full border border-[var(--gold,#E8A020)]/40 bg-[var(--gold,#E8A020)]/10 px-2 py-0.5 text-[11px] text-[var(--gold,#E8A020)]"
+                >
+                  {LICENCE_LABELS[licenceClass] ?? licenceClass}
+                </span>
+              )}
+              {fetchedAt && !Number.isNaN(fetchedAt.getTime()) && (
+                <span className="opacity-60">Fetched {fetchedAt.toLocaleString()}</span>
+              )}
+              {confidencePct && <span className="opacity-60">Confidence {confidencePct}</span>}
+              {entry.property_path && (
+                <span className="opacity-60">
+                  Supports <code className="font-mono">{entry.property_path}</code>
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
 
 export default function ReviewInboxPage() {
   const supabase = getSupabaseBrowserClient();
@@ -55,6 +223,9 @@ export default function ReviewInboxPage() {
   const [loadError, setLoadError]     = useState<string | null>(null);
   const [actionState, setActionState] = useState<Record<string, ActionState>>({});
   const [actionError, setActionError] = useState<Record<string, string>>({});
+  // Reject flow: which proposal has its "reason" form open, and the draft text.
+  const [rejectingId, setRejectingId]   = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   // ---------------------------------------------------------------------
   // Auth: track the Supabase session (or null if not configured / signed out)
@@ -156,19 +327,22 @@ export default function ReviewInboxPage() {
   // here means the signed-in user is authenticated but not an approver for
   // this tenant, and is shown as such rather than swallowed.
   // ---------------------------------------------------------------------
-  async function callAction(edit: ProposedEditRow, action: 'approve' | 'reject') {
+  async function callAction(edit: ProposedEditRow, action: 'approve' | 'reject', reason?: string) {
     if (!session) return;
     setActionState(s => ({ ...s, [edit.id]: 'pending' }));
     setActionError(s => ({ ...s, [edit.id]: '' }));
 
     try {
+      const trimmedReason = reason?.trim();
       const res = await fetch(`/api/ontology/proposed-edit/${edit.id}/${action}`, {
         method: 'POST',
         headers: {
           Authorization:  `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
-        body: action === 'reject' ? JSON.stringify({}) : undefined,
+        body: action === 'reject'
+          ? JSON.stringify(trimmedReason ? { reason: trimmedReason } : {})
+          : undefined,
       });
 
       const body = await res.json().catch(() => ({}));
@@ -184,6 +358,10 @@ export default function ReviewInboxPage() {
       // re-fetch in the background to reconcile with the server.
       setEdits(prev => prev.filter(e => e.id !== edit.id));
       setActionState(s => ({ ...s, [edit.id]: 'idle' }));
+      if (rejectingId === edit.id) {
+        setRejectingId(null);
+        setRejectReason('');
+      }
       void loadPendingEdits();
     } catch (err) {
       setActionState(s => ({ ...s, [edit.id]: 'error' }));
@@ -317,9 +495,13 @@ export default function ReviewInboxPage() {
                 <p className="text-sm opacity-80">{edit.rationale}</p>
               )}
 
+              <EvaluationSection evaluation={edit.evaluation} />
+
+              <SourcesSection payload={edit.payload} />
+
               <details className="text-xs opacity-70">
                 <summary className="cursor-pointer select-none opacity-80">
-                  Payload / provenance
+                  Show raw
                 </summary>
                 <pre className="mt-2 overflow-x-auto rounded bg-black/30 p-2">
                   {JSON.stringify(edit.payload, null, 2)}
@@ -330,22 +512,72 @@ export default function ReviewInboxPage() {
                 <p className="text-sm text-red-400">{actionError[edit.id]}</p>
               )}
 
-              <div className="flex gap-2 pt-1">
-                <button
-                  disabled={actionState[edit.id] === 'pending'}
-                  onClick={() => void callAction(edit, 'approve')}
-                  className="rounded bg-[var(--live,#0E9F6E)] px-3 py-1.5 text-sm font-medium text-black disabled:opacity-50"
+              {rejectingId === edit.id ? (
+                <form
+                  className="space-y-2 rounded border border-red-400/30 bg-red-400/5 p-3"
+                  onSubmit={e => {
+                    e.preventDefault();
+                    void callAction(edit, 'reject', rejectReason);
+                  }}
                 >
-                  Approve
-                </button>
-                <button
-                  disabled={actionState[edit.id] === 'pending'}
-                  onClick={() => void callAction(edit, 'reject')}
-                  className="rounded border border-red-400/60 px-3 py-1.5 text-sm font-medium text-red-300 disabled:opacity-50"
-                >
-                  Reject
-                </button>
-              </div>
+                  <label
+                    htmlFor={`reject-reason-${edit.id}`}
+                    className="block text-xs font-medium opacity-80"
+                  >
+                    Why are you turning this down? (optional — kept with the record)
+                  </label>
+                  <input
+                    id={`reject-reason-${edit.id}`}
+                    type="text"
+                    value={rejectReason}
+                    onChange={e => setRejectReason(e.target.value)}
+                    placeholder="e.g. duplicate of an existing company"
+                    maxLength={500}
+                    autoFocus
+                    className="w-full rounded border border-[var(--card-border,#EAE2D2)]/30 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-red-400"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={actionState[edit.id] === 'pending'}
+                      className="rounded bg-red-400/90 px-3 py-1.5 text-sm font-medium text-black disabled:opacity-50"
+                    >
+                      {actionState[edit.id] === 'pending' ? 'Rejecting\u2026' : 'Confirm reject'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={actionState[edit.id] === 'pending'}
+                      onClick={() => {
+                        setRejectingId(null);
+                        setRejectReason('');
+                      }}
+                      className="rounded border border-[var(--card-border,#EAE2D2)]/30 px-3 py-1.5 text-sm disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex gap-2 pt-1">
+                  <button
+                    disabled={actionState[edit.id] === 'pending'}
+                    onClick={() => void callAction(edit, 'approve')}
+                    className="rounded bg-[var(--live,#0E9F6E)] px-3 py-1.5 text-sm font-medium text-black disabled:opacity-50"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    disabled={actionState[edit.id] === 'pending'}
+                    onClick={() => {
+                      setRejectingId(edit.id);
+                      setRejectReason('');
+                    }}
+                    className="rounded border border-red-400/60 px-3 py-1.5 text-sm font-medium text-red-300 disabled:opacity-50"
+                  >
+                    Reject
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ul>

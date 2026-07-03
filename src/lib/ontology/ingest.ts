@@ -16,6 +16,7 @@
 
 import { MAPPERS } from './mappers';
 import { proposeCreateEntity, proposeCreateLink } from './propose';
+import { evaluate } from '@/lib/ai/analyze';
 import type { Entity, Link, ProposedEdit } from './types';
 
 // ---------------------------------------------------------------------------
@@ -57,6 +58,11 @@ export const INGEST_PROPOSED_BY = 'connector-ingest';
  *   throws for a single bad record, so one bad row cannot abort a batch.
  * - Never returns a ProposedEdit whose kind targets anything other than
  *   'create_entity' / 'create_link' (i.e. never a direct entity/link write).
+ * - Every returned ProposedEdit carries the AIP eval-gate result on its
+ *   `evaluation` field (v2 §12.4): evaluate() from src/lib/ai/analyze.ts is
+ *   run at propose time, grounded against the same record's own entity ids
+ *   so create_link proposals are checked for dangling endpoints. evaluate()
+ *   is pure (no network/DB), so this module stays unit-testable offline.
  */
 export function buildProposedEditsFromRecords(
   source:  string,
@@ -75,11 +81,20 @@ export function buildProposedEditsFromRecords(
     try {
       const { entities, links, provenance } = mapper(record, tenant);
 
+      // Ground link proposals against the entity ids produced by THIS
+      // record's mapping (the mapper's link source/target ids reference
+      // these), so the eval gate's grounding check is real rather than
+      // merely "well-formed UUID".
+      const knownEntityIds = new Set((entities as Entity[]).map(e => e.id));
+
       for (const entity of entities as Entity[]) {
         const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...entityFields } = entity;
         const rationale = buildRationale(source, 'entity', entity, provenance);
         edits.push(
-          proposeCreateEntity(tenant, entityFields, INGEST_PROPOSED_BY, rationale),
+          withEvaluation(
+            proposeCreateEntity(tenant, entityFields, INGEST_PROPOSED_BY, rationale),
+            knownEntityIds,
+          ),
         );
       }
 
@@ -87,7 +102,10 @@ export function buildProposedEditsFromRecords(
         const { id: _id, created_at: _createdAt, ...linkFields } = link;
         const rationale = buildRationale(source, 'link', link, provenance);
         edits.push(
-          proposeCreateLink(tenant, linkFields, INGEST_PROPOSED_BY, rationale),
+          withEvaluation(
+            proposeCreateLink(tenant, linkFields, INGEST_PROPOSED_BY, rationale),
+            knownEntityIds,
+          ),
         );
       }
     } catch {
@@ -103,6 +121,19 @@ export function buildProposedEditsFromRecords(
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Run the AIP eval gate over a freshly built proposal and record the result
+ * on its `evaluation` field (persisted to intel.proposed_edit.evaluation by
+ * the ingest route's insert). Pure and non-mutating: evaluate() never writes
+ * anywhere, and the proposal itself is returned as a new object.
+ */
+function withEvaluation(
+  edit:           ProposedEdit,
+  knownEntityIds: Set<string>,
+): ProposedEditInsert {
+  return { ...edit, evaluation: evaluate(edit, { knownEntityIds }) };
+}
 
 function buildRationale(
   source:     string,

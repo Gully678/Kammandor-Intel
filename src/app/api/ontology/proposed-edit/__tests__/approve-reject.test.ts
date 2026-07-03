@@ -17,7 +17,7 @@
  *     passed and the failure is downstream network/config, not auth).
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { POST as approvePOST } from '../[id]/approve/route';
 import { POST as rejectPOST } from '../[id]/reject/route';
@@ -125,5 +125,90 @@ describe('POST /api/ontology/proposed-edit/[id]/reject', () => {
     });
     const res = await rejectPOST(req, makeContext('00000000-0000-0000-0000-000000000002'));
     expect(res.status).not.toBe(401);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// v2 §12.4 — reject reason pass-through to the governed RPC.
+//
+// intel.reject_proposed_edit now PERSISTS p_reason into
+// intel.proposed_edit.reason (migrations/intel/0015). These tests stub
+// global fetch (the route's only transport — see authRpc.ts) and assert the
+// route forwards the optional body reason as p_reason, byte-for-byte,
+// without loosening the 401 gate.
+// ---------------------------------------------------------------------------
+
+describe('POST /api/ontology/proposed-edit/[id]/reject — reason pass-through (v2 §12.4)', () => {
+  const EDIT_ID = '00000000-0000-0000-0000-000000000003';
+  const ORIGINAL_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    process.env.SUPABASE_URL      = 'https://stub.supabase.co';
+    process.env.SUPABASE_ANON_KEY = 'stub-anon-key';
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
+    if (ORIGINAL_ANON_KEY === undefined) delete process.env.SUPABASE_ANON_KEY;
+    else process.env.SUPABASE_ANON_KEY = ORIGINAL_ANON_KEY;
+  });
+
+  function stubRpcFetch() {
+    const fetchMock = vi.fn(async () =>
+      new Response('null', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    return fetchMock;
+  }
+
+  it('forwards the body reason as p_reason to intel.reject_proposed_edit', async () => {
+    const fetchMock = stubRpcFetch();
+
+    const req = makeRequest(`/api/ontology/proposed-edit/${EDIT_ID}/reject`, {
+      headers: { Authorization: 'Bearer test-access-token' },
+      body: { reason: 'duplicate entity' },
+    });
+    const res = await rejectPOST(req, makeContext(EDIT_ID));
+
+    expect(res.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(String(url)).toContain('/rpc/reject_proposed_edit');
+    expect(JSON.parse(String(init.body))).toEqual({
+      p_edit_id: EDIT_ID,
+      p_reason:  'duplicate entity',
+    });
+  });
+
+  it('sends p_reason: null when no reason is provided in the body', async () => {
+    const fetchMock = stubRpcFetch();
+
+    const req = makeRequest(`/api/ontology/proposed-edit/${EDIT_ID}/reject`, {
+      headers: { Authorization: 'Bearer test-access-token' },
+      body: {},
+    });
+    const res = await rejectPOST(req, makeContext(EDIT_ID));
+
+    expect(res.status).toBe(200);
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toEqual({
+      p_edit_id: EDIT_ID,
+      p_reason:  null,
+    });
+  });
+
+  it('still returns 401 (and never calls the RPC) when unauthenticated, even with a reason body', async () => {
+    const fetchMock = stubRpcFetch();
+
+    const req = makeRequest(`/api/ontology/proposed-edit/${EDIT_ID}/reject`, {
+      body: { reason: 'duplicate entity' },
+    });
+    const res = await rejectPOST(req, makeContext(EDIT_ID));
+
+    expect(res.status).toBe(401);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
