@@ -21,9 +21,9 @@ export const dynamic = 'force-dynamic';
  * Auth: REQUIRES `Authorization: Bearer <supabase access token>`. 401 if
  * missing/malformed.
  *
- * Body (optional): { reason?: string } — forwarded as p_reason. Note: as of
- * migration 0009, intel.proposed_edit has no reason/notes column, so the
- * reason is currently accepted but not persisted (see 0012's comment).
+ * Body (optional): { reason?: string } — forwarded as p_reason and PERSISTED
+ * into intel.proposed_edit.reason by intel.reject_proposed_edit (v2 §12.4;
+ * migrations/intel/0015 added the column and taught the RPC to write it).
  *
  * Response:
  *   200 {}
