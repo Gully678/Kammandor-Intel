@@ -8,21 +8,39 @@
 // Object types (mirrors intel.entity type CHECK constraint)
 // ---------------------------------------------------------------------------
 
-export type ObjectType =
-  | 'company'
-  | 'person'
-  | 'fund'
-  | 'deal'
-  | 'vessel'
-  | 'port'
-  | 'wallet'
-  | 'sanction'
-  | 'filing'
-  | 'event'
-  | 'asset'
-  | 'jurisdiction'
-  | 'news_source'
-  | 'instrument';
+/**
+ * All entity object types — mirrors the intel.entity type CHECK constraint
+ * (14 v1 types + 8 v2 types added in migration intel_0016) and the
+ * intel.object_type catalogue table.
+ */
+export const ENTITY_TYPES = [
+  // v1
+  'company',
+  'person',
+  'fund',
+  'deal',
+  'vessel',
+  'port',
+  'wallet',
+  'sanction',
+  'filing',
+  'event',
+  'asset',
+  'jurisdiction',
+  'news_source',
+  'instrument',
+  // v2 (migration intel_0016)
+  'document',
+  'market_event',
+  'trend',
+  'mention',
+  'campaign',
+  'contact',
+  'review',
+  'competitor_signal',
+] as const;
+
+export type ObjectType = (typeof ENTITY_TYPES)[number];
 
 // ---------------------------------------------------------------------------
 // Link types (mirrors intel.link type CHECK constraint)
@@ -159,4 +177,111 @@ export interface ProposedEdit {
   reviewed_by?: string;
   reviewed_at?: string;  // ISO 8601
   created_at:   string;  // ISO 8601
+  /** Why the edit was proposed — mirrors intel.proposed_edit.reason (intel_0015) */
+  reason?:      string;
+  /** Structured evaluation output — mirrors intel.proposed_edit.evaluation jsonb (intel_0015) */
+  evaluation?:  unknown;
 }
+
+// ---------------------------------------------------------------------------
+// Link-type catalogue (mirrors intel.link_type seed rows, migration intel_0017)
+// ---------------------------------------------------------------------------
+
+/** A catalogued relationship class between two entity types. */
+export interface LinkTypeDef {
+  key: string;
+  label: string;
+  description: string;
+  sourceType: string;
+  targetType: string;
+  shape: 'foreign-key' | 'many-to-many';
+  vertical: 'finance' | 'marketing' | 'generic';
+}
+
+/**
+ * The 9 v2 link types seeded in intel.link_type (migration intel_0017).
+ * Keys and fields mirror the DB rows exactly — do not invent entries here.
+ */
+export const LINK_TYPE_CATALOGUE: Record<string, LinkTypeDef> = {
+  deal_company: {
+    key: 'deal_company',
+    label: 'Deal ↔ Company',
+    description: 'Which counterparty a deal is with',
+    sourceType: 'deal',
+    targetType: 'company',
+    shape: 'foreign-key',
+    vertical: 'finance',
+  },
+  deal_person: {
+    key: 'deal_person',
+    label: 'Deal ↔ Person',
+    description: 'Signatories/principals on a deal',
+    sourceType: 'deal',
+    targetType: 'person',
+    shape: 'foreign-key',
+    vertical: 'finance',
+  },
+  instrument_deal: {
+    key: 'instrument_deal',
+    label: 'Instrument ↔ Deal',
+    description: 'Which instrument funds which deal',
+    sourceType: 'instrument',
+    targetType: 'deal',
+    shape: 'foreign-key',
+    vertical: 'finance',
+  },
+  vessel_deal: {
+    key: 'vessel_deal',
+    label: 'Vessel ↔ Deal',
+    description: 'Which cargo/vessel a physical-commodity deal moves',
+    sourceType: 'vessel',
+    targetType: 'deal',
+    shape: 'foreign-key',
+    vertical: 'finance',
+  },
+  person_sanction: {
+    key: 'person_sanction',
+    label: 'Person ↔ Sanction',
+    description: 'A person appearing on one or more sanctions lists',
+    sourceType: 'person',
+    targetType: 'sanction',
+    shape: 'many-to-many',
+    vertical: 'finance',
+  },
+  event_company: {
+    key: 'event_company',
+    label: 'Event ↔ Company',
+    description: 'An event affecting one or more companies, and vice versa',
+    sourceType: 'event',
+    targetType: 'company',
+    shape: 'many-to-many',
+    vertical: 'generic',
+  },
+  company_mention: {
+    key: 'company_mention',
+    label: 'Company ↔ Mention',
+    description: 'Which brand a public mention refers to',
+    sourceType: 'company',
+    targetType: 'mention',
+    shape: 'foreign-key',
+    vertical: 'marketing',
+  },
+  contact_campaign: {
+    key: 'contact_campaign',
+    label: 'Contact ↔ Campaign',
+    description: 'Which contacts were touched by which campaigns',
+    sourceType: 'contact',
+    targetType: 'campaign',
+    shape: 'many-to-many',
+    vertical: 'marketing',
+  },
+  market_event_company: {
+    key: 'market_event_company',
+    label: 'Market Event ↔ Company',
+    description: 'Cascading impact of one macro event across tenant-relevant entities',
+    sourceType: 'market_event',
+    targetType: 'company',
+    shape: 'many-to-many',
+    vertical: 'generic',
+  },
+};
