@@ -7,6 +7,7 @@
 export type SourceTier = 'free' | 'premium' | 'byok';
 export type SourceAuth = 'none' | 'platform-key' | 'tenant-key';
 export type SourceRenderMode = 'map-layer' | 'panel' | 'enrichment';
+export type LicenceClass = 'licensed' | 'public-attribution' | 'public-open' | 'proprietary';
 
 export interface SourceDef {
   /** Stable machine key — used as feature-flag key and FK in intel schema */
@@ -28,6 +29,8 @@ export interface SourceDef {
   renderMode: SourceRenderMode;
   /** Whether this source is on by default (overridable by tenant flags) */
   enabledByDefault: boolean;
+  /** Licence metadata per PRD v2.0 §13.2 — terms are verbatim from PRD §8.7, never invented */
+  licence: { class: LicenceClass; terms: string; url?: string };
 }
 
 export const SOURCES: SourceDef[] = [
@@ -39,6 +42,7 @@ export const SOURCES: SourceDef[] = [
     auth: 'none',
     renderMode: 'map-layer',
     enabledByDefault: true,
+    licence: { class: 'public-attribution', terms: 'CC-BY 4.0 (World Bank Open Data licence)' },
   },
   {
     key: 'gdelt',
@@ -48,6 +52,7 @@ export const SOURCES: SourceDef[] = [
     auth: 'none',
     renderMode: 'map-layer',
     enabledByDefault: true,
+    licence: { class: 'public-open', terms: 'GDELT open-data terms (broadly permissive; verify commercial-redistribution nuance)' },
   },
   {
     key: 'markets-fx',
@@ -61,6 +66,7 @@ export const SOURCES: SourceDef[] = [
     auth: 'platform-key',
     renderMode: 'panel',
     enabledByDefault: true,
+    licence: { class: 'licensed', terms: 'Commercial licence — redistribution terms vary by vendor; verify before client-facing display' },
   },
   {
     key: 'reviews',
@@ -72,6 +78,7 @@ export const SOURCES: SourceDef[] = [
     auth: 'tenant-key',
     renderMode: 'panel',
     enabledByDefault: false,
+    licence: { class: 'licensed', terms: 'Aggregation layer — inherits the licence terms of each underlying review connector; verify per platform' },
   },
   {
     key: 'sec-edgar',
@@ -81,6 +88,7 @@ export const SOURCES: SourceDef[] = [
     auth: 'none',
     renderMode: 'panel',
     enabledByDefault: false,
+    licence: { class: 'public-open', terms: 'US public-domain / SEC terms of use' },
   },
   {
     key: 'companies-house',
@@ -90,6 +98,7 @@ export const SOURCES: SourceDef[] = [
     auth: 'platform-key',
     renderMode: 'panel',
     enabledByDefault: false,
+    licence: { class: 'public-attribution', terms: 'UK Open Government Licence' },
   },
   {
     key: 'gleif',
@@ -99,6 +108,7 @@ export const SOURCES: SourceDef[] = [
     auth: 'none',
     renderMode: 'enrichment',
     enabledByDefault: true,
+    licence: { class: 'public-open', terms: 'Open, CC0-equivalent (GLEIF terms)' },
   },
   {
     key: 'fred',
@@ -108,6 +118,7 @@ export const SOURCES: SourceDef[] = [
     auth: 'platform-key',
     renderMode: 'panel',
     enabledByDefault: false,
+    licence: { class: 'public-open', terms: 'US public-domain (FRED terms)' },
   },
   {
     key: 'un-comtrade',
@@ -117,6 +128,7 @@ export const SOURCES: SourceDef[] = [
     auth: 'platform-key',
     renderMode: 'map-layer',
     enabledByDefault: false,
+    licence: { class: 'public-attribution', terms: 'UN Comtrade terms of use' },
   },
   {
     key: 'social',
@@ -128,6 +140,7 @@ export const SOURCES: SourceDef[] = [
     auth: 'tenant-key',
     renderMode: 'panel',
     enabledByDefault: false,
+    licence: { class: 'licensed', terms: 'Varies by platform — most restrict bulk redistribution; verify per-platform terms' },
   },
 ];
 

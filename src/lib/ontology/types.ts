@@ -131,15 +131,20 @@ export interface Link {
   created_at:       string;   // ISO 8601
 }
 
+export type LicenceClass = 'licensed' | 'public-attribution' | 'public-open' | 'proprietary';
+
 /** Mirrors intel.entity_provenance */
 export interface Provenance {
-  id:          string;
-  entity_id:   string;
-  source_key:  string;
-  source_url?: string;
-  fetched_at:  string;   // ISO 8601
-  confidence?: number;   // 0–1
-  raw?:        unknown;
+  id:             string;
+  entity_id:      string;
+  source_key:     string;
+  source_url?:    string;
+  fetched_at:     string;   // ISO 8601
+  confidence?:    number;   // 0–1
+  raw?:           unknown;
+  licence_class?: LicenceClass;
+  licence_terms?: string;
+  property_path?: string;
 }
 
 /** Mirrors intel.proposed_edit */
