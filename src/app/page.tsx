@@ -120,6 +120,10 @@ export default function Dashboard() {
   // ── Launch context — parsed from URL search params on mount ──
   const [embedMode, setEmbedMode] = useState(false);
   const [tenantContext, setTenantContext] = useState<string | null>(null);
+  // Tenant-scoped watchlist config (Phase 4) — fetched from
+  // /api/intel/monitoring-config once tenantContext resolves. null until
+  // fetched or when there is no tenant context (free public tier).
+  const [monitoringConfig, setMonitoringConfig] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     document.body.className = appTheme === 'core' ? '' : `theme-${appTheme}`;
@@ -198,9 +202,16 @@ export default function Dashboard() {
     // embed=1 → clean embedded view (hide standalone-only chrome)
     if (p.get('embed') === '1') setEmbedMode(true);
 
-    // tenant → enable tenant-scoped panels/watchlists; absent = free public tier
+    // tenant → enable tenant-scoped panels/watchlists; absent = free public tier.
+    // Phase 4: `t` (a signed handoff token — see src/lib/handoff) also counts as
+    // tenant context present, even though its VALUE is opaque here and only ever
+    // verified server-side by /api/intel/monitoring-config. Setting tenantContext
+    // from its mere presence is a client-side UI flag only ("show tenant-scoped
+    // chrome"), never a trust decision — it does not grant access to any data.
     const tenant = p.get('tenant');
+    const handoffToken = p.get('t');
     if (tenant) setTenantContext(tenant);
+    else if (handoffToken) setTenantContext('pending'); // resolved server-side on fetch
 
     // theme=kammandor → Kammandor theme (already default; just honour it explicitly)
     // theme=invrt → apply INVRT brand CSS vars client-side
@@ -222,9 +233,11 @@ export default function Dashboard() {
       }
     }
 
-    // tickers/keywords/entities/handles/focus only apply when tenant is present
-    // (full watchlist scoping is a later phase with Supabase RLS)
-    // Stored for future use but not applied without tenant context.
+    // tickers/keywords/entities/handles/focus only apply when tenant is present.
+    // Phase 4: the tenant-scoped watchlist itself is fetched by the dedicated
+    // effect below (keyed on tenantContext) from /api/intel/monitoring-config,
+    // rather than inline here, so it re-fetches if tenantContext ever changes
+    // and so this mount-time URL-parsing effect stays focused on parsing.
 
     // Delay geolocation until map is ready (after splash screen clears)
     const geoTimer = setTimeout(() => {
@@ -241,6 +254,34 @@ export default function Dashboard() {
 
     return () => clearTimeout(geoTimer);
   }, []);
+
+  // Phase 4 — tenant-scoped monitoring config. Fetches the resolved
+  // tenant's watchlist (keywords/entities/tickers/geographies/map focus)
+  // from /api/intel/monitoring-config once tenantContext is set. The route
+  // itself re-resolves the tenant server-side via the signed handoff token
+  // (see src/lib/handoff) rather than trusting this client-side value, so
+  // this fetch is best-effort UI plumbing, not the security boundary.
+  // NOTE: monitoringConfig is fetched and stored here but not yet consumed
+  // by the map/layer/panel components below — wiring the watchlist fields
+  // into IntelMap/LayerPanel/OsintPanel etc. is left for a follow-up slice
+  // to avoid risking the existing map behaviour in this change.
+  useEffect(() => {
+    if (!tenantContext) { setMonitoringConfig(null); return; }
+    const controller = new AbortController();
+    const qs = new URLSearchParams(window.location.search);
+    // Forward whatever tenant-identifying param the embed URL already used
+    // (a signed `t=` handoff token if present, else the plain dev-only
+    // `tenant=` param) — the route resolves/validates it server-side.
+    const forward = new URLSearchParams();
+    const t = qs.get('t');
+    if (t) forward.set('t', t);
+    else if (qs.get('tenant')) forward.set('tenant', tenantContext);
+    fetch(`/api/intel/monitoring-config?${forward.toString()}`, { signal: controller.signal })
+      .then(r => (r.ok ? r.json() : null))
+      .then(cfg => { if (cfg) setMonitoringConfig(cfg); })
+      .catch(() => { /* silent — keep null; UI falls back to public defaults */ });
+    return () => controller.abort();
+  }, [tenantContext]);
 
   // URL state: persist active layers only (lat/lon comes from IP geolocation on each load)
   const urlTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
