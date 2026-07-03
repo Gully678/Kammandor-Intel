@@ -124,6 +124,7 @@ export interface Link {
   source_entity_id: string;
   target_entity_id: string;
   type:             LinkType;
+  strength?:        number | null;   // relationship weight; persisted to intel.link.strength (see slice 2/3) or link.properties
   properties:       Record<string, unknown>;
   valid_from?:      string;   // ISO 8601
   valid_to?:        string;   // ISO 8601

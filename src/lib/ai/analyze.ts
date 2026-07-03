@@ -53,8 +53,8 @@ function buildPrompt(input: AnalyzeEntitiesInput): string {
     const props = JSON.stringify(e.properties ?? {});
     lines.push(
       `  [${e.id}] type=${e.type} name="${e.canonical_name ?? '(unnamed)'}" ` +
-      `risk_score=${(e as Record<string, unknown>).risk_score ?? 'null'} ` +
-      `risk_category=${(e as Record<string, unknown>).risk_category ?? 'null'} ` +
+      `risk_score=${e.risk_score ?? 'null'} ` +
+      `risk_category=${e.risk_category ?? 'null'} ` +
       `props=${props}`
     );
   }
