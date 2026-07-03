@@ -3,6 +3,7 @@ import { MAPPERS } from '@/lib/ontology/mappers';
 import { buildProposedEditsFromRecords, type ProposedEditInsert } from '@/lib/ontology/ingest';
 import { isSourceEnabled } from '@/config/featureFlags';
 import { getSecret } from '@/lib/secrets';
+import { requireBearerToken } from '@/lib/ontology/authRpc';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,6 +46,17 @@ interface IngestBody {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  // Slice 3b hardening: this route only ever writes to intel.proposed_edit
+  // (status='pending') — see the governance banner above — but it is still
+  // a write endpoint and must not be callable anonymously. Require a bearer
+  // token from any authenticated caller (any tenant/role); the STRICTER
+  // tenant+role authz lives in intel.approve_proposed_edit /
+  // intel.reject_proposed_edit for the actual governed write path.
+  const auth = requireBearerToken(req);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: 401 });
+  }
+
   let body: IngestBody;
   try {
     body = await req.json();
