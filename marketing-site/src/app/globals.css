@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-serif: "Instrument Serif";
+    --font-sans: "DM Sans";
+    --font-mono: "DM Mono";
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-page text-body font-sans antialiased;
+    font-size: 15px;
+    line-height: 1.65;
+    overflow-x: hidden;
+  }
+  ::selection {
+    @apply bg-gold-chip text-ink;
+  }
+}
+
+@layer components {
+  .wrap {
+    @apply mx-auto max-w-site px-6;
+  }
+  .eyebrow {
+    @apply mb-4 font-mono text-[10.5px] uppercase tracking-[0.18em] text-gold-text;
+  }
+  .receipt {
+    @apply inline-flex max-w-full items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap rounded-md border border-input-border bg-tint px-2 py-0.5 font-mono text-[10px] tracking-[0.03em] text-gold-text;
+  }
+  .receipt::before {
+    content: "◆";
+    font-size: 7px;
+    @apply text-gold;
+  }
+  .tagchip {
+    @apply inline-flex rounded-md border border-input-border bg-tint px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* receipt marquee */
+@keyframes km-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.km-marquee {
+  animation: km-marquee 36s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .km-marquee { animation: none; }
+  html { scroll-behavior: auto; }
+}

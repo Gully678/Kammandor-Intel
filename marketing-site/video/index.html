@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<title>Kammandor Intelligence — brand film (HyperFrames composition)</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300..700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16141C; --ink-raise:#1B1822; --page:#ECE5D7;
+    --gold:#E8A020; --gold-deep:#C47D0E; --gold-light:#F5BC4A;
+    --on-ink:#FAF6EE; --on-ink-dim:#C8BFB1; --on-ink-dim2:#9C9088;
+    --red:#C0392B; --red-bg:#FBE7E3;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  #stage{position:relative;width:1920px;height:1080px;background:var(--ink);overflow:hidden;
+    font-family:'DM Sans',sans-serif;color:var(--on-ink)}
+  .grid-tex{position:absolute;inset:0;opacity:.05;
+    background-image:linear-gradient(rgba(250,246,238,.5) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(250,246,238,.5) 1px,transparent 1px);
+    background-size:72px 72px}
+  .frame{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:28px;text-align:center}
+  .serif{font-family:'Instrument Serif',serif;font-weight:400}
+  .mono{font-family:'DM Mono',monospace}
+  .gold{color:var(--gold)} .gold-i{font-style:italic;color:var(--gold)}
+
+  #f1 h1{font-size:150px;line-height:1.02}
+  #f1 .sub{font-size:26px;color:var(--on-ink-dim);max-width:900px}
+
+  #f2 .law{font-size:40px;letter-spacing:.06em}
+  #f2 .law .op{color:var(--gold)}
+  #f2 .cap{font-size:22px;color:var(--on-ink-dim2)}
+
+  #f3 .card{width:820px;background:var(--ink-raise);border:1px solid rgba(255,255,255,.15);
+    border-radius:24px;padding:44px 48px;text-align:left;box-shadow:0 40px 100px rgba(0,0,0,.5)}
+  #f3 .pill{display:inline-block;background:var(--red-bg);color:var(--red);border-radius:24px;
+    padding:6px 18px;font-size:18px;letter-spacing:.1em;font-weight:500}
+  #f3 .t{font-size:30px;line-height:1.4;margin-top:20px}
+  #f3 .w{font-size:22px;color:var(--on-ink-dim);margin-top:10px}
+  #f3 .rcpt{display:inline-flex;align-items:center;gap:10px;margin-top:26px;
+    border:1px dashed rgba(255,255,255,.3);border-radius:10px;padding:10px 20px;
+    font-size:19px;color:var(--gold-light)}
+  #f3 .rcpt .d{color:var(--gold);font-size:12px}
+
+  #f4 .word{font-size:64px}
+  #f4 .tag{font-size:22px;letter-spacing:.2em;color:var(--on-ink-dim2);text-transform:uppercase}
+</style>
+</head>
+<body>
+<div id="stage" data-composition-id="kammandor" data-start="0" data-width="1920" data-height="1080">
+  <div class="grid-tex"></div>
+
+  <!-- Frame 1 · 0–3.2s -->
+  <div id="f1" class="frame clip" data-start="0" data-duration="3.2" data-track-index="1">
+    <h1 class="serif">See it <span class="gold-i">coming.</span></h1>
+    <div class="sub">The governed intelligence layer. Your data, connected — with a receipt behind every fact.</div>
+  </div>
+
+  <!-- Frame 2 · 3.2–6.4s -->
+  <div id="f2" class="frame clip" data-start="3.2" data-duration="3.2" data-track-index="1">
+    <div class="law mono">propose <span class="op">→</span> evaluate <span class="op">→</span> human-approve <span class="op">→</span> audited-write</div>
+    <div class="cap">The one path every fact must take. There is no other door.</div>
+  </div>
+
+  <!-- Frame 3 · 6.4–9.6s -->
+  <div id="f3" class="frame clip" data-start="6.4" data-duration="3.2" data-track-index="1">
+    <div class="card">
+      <span class="pill mono">CRITICAL</span>
+      <div class="t">Two watched categories matched this cycle for a monitored counterparty</div>
+      <div class="w">Why: sanctions-adjacent coverage + filings both moved</div>
+      <div class="rcpt mono"><span class="d">◆</span> source: GDELT · licence: open · conf 0.91</div>
+    </div>
+  </div>
+
+  <!-- Frame 4 · 9.6–13s -->
+  <div id="f4" class="frame clip" data-start="9.6" data-duration="3.4" data-track-index="1">
+    <svg width="120" height="120" viewBox="0 0 32 32" fill="none">
+      <path d="M6 23 L13 13 L19 18 L26 8" stroke="#E8A020" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="6" cy="23" r="3" fill="#E8A020"/><circle cx="13" cy="13" r="2.6" fill="#FAF6EE"/>
+      <circle cx="19" cy="18" r="2.6" fill="#FAF6EE"/><circle cx="26" cy="8" r="3.4" fill="#E8A020"/>
+    </svg>
+    <div class="word serif">Kammandor <span class="gold-i">Intelligence</span></div>
+    <div class="tag mono">Start free · the code is the demo</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+
+    // Frame visibility is driven ON the timeline so it behaves identically
+    // whether the HyperFrames renderer seeks it or a browser plays it.
+    tl.set(["#f2", "#f3", "#f4"], { opacity: 0 }, 0);
+    tl.set("#f2", { opacity: 1 }, 3.2);
+    tl.set("#f3", { opacity: 1 }, 6.4);
+    tl.set("#f4", { opacity: 1 }, 9.6);
+
+    // F1 — title rises, gold word lands late
+    tl.from("#f1 h1", { opacity: 0, y: 60, duration: 0.9, ease: "power3.out" }, 0.1);
+    tl.from("#f1 .sub", { opacity: 0, y: 30, duration: 0.8, ease: "power3.out" }, 0.55);
+    tl.to("#f1", { opacity: 0, y: -40, duration: 0.4, ease: "power2.in" }, 2.8);
+
+    // F2 — law line words stagger in
+    tl.from("#f2 .law", { opacity: 0, letterSpacing: ".3em", duration: 0.9, ease: "power3.out" }, 3.3);
+    tl.from("#f2 .cap", { opacity: 0, y: 24, duration: 0.7 }, 3.9);
+    tl.to("#f2", { opacity: 0, y: -40, duration: 0.4, ease: "power2.in" }, 6.0);
+
+    // F3 — signal card slides up; receipt stamps in
+    tl.from("#f3 .card", { opacity: 0, y: 80, scale: 0.96, duration: 0.8, ease: "power3.out" }, 6.5);
+    tl.from("#f3 .rcpt", { opacity: 0, scale: 0.8, duration: 0.5, ease: "back.out(2)" }, 7.6);
+    tl.to("#f3", { opacity: 0, y: -40, duration: 0.4, ease: "power2.in" }, 9.2);
+
+    // F4 — logo draw + wordmark
+    tl.from("#f4 svg", { opacity: 0, scale: 0.7, rotate: -8, duration: 0.7, ease: "back.out(1.6)" }, 9.7);
+    tl.from("#f4 .word", { opacity: 0, y: 30, duration: 0.7, ease: "power3.out" }, 10.1);
+    tl.from("#f4 .tag", { opacity: 0, duration: 0.6 }, 10.6);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines.kammandor = tl;
+
+    // Direct-browser preview: the HyperFrames renderer runs under webdriver
+    // and seeks the paused timeline itself. When a human opens this file,
+    // play it on a loop so the film is watchable by double-click.
+    if (!navigator.webdriver) {
+      // Scale the 1920×1080 stage to fit the window for human preview.
+      const fit = () => {
+        const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+        const stage = document.getElementById("stage");
+        document.body.style.cssText = "background:#0b0a0f;overflow:hidden;height:100vh;margin:0";
+        stage.style.position = "absolute";
+        stage.style.left = "50%";
+        stage.style.top = "50%";
+        stage.style.transformOrigin = "center center";
+        stage.style.transform = `translate(-50%,-50%) scale(${s})`;
+      };
+      fit();
+      addEventListener("resize", fit);
+      tl.repeat(-1).repeatDelay(0.6).play();
+    }
+  </script>
+</div>
+</body>
+</html>
