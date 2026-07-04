@@ -1,0 +1,12 @@
+{
+  "name": "kammandor-brand-film",
+  "private": true,
+  "description": "HyperFrames composition for the Kammandor Intelligence brand film. Render locally: npm install && npm run render. Requires Node 22+ and FFmpeg.",
+  "scripts": {
+    "preview": "hyperframes preview",
+    "render": "hyperframes render index.html --output ../public/video/kammandor-loop.mp4"
+  },
+  "devDependencies": {
+    "hyperframes": "latest"
+  }
+}
