@@ -15,6 +15,7 @@ import { mapUnComtradeFlow }        from './un-comtrade';
 import { mapMarketsInstrument }     from './markets';
 import { mapReview }                from './reviews';
 import { mapSocialPost }            from './social';
+import { mapOfacSdnRecord }         from './ofac-sdn';
 
 export type { MapperResult };
 
@@ -29,6 +30,7 @@ export {
   mapMarketsInstrument,
   mapReview,
   mapSocialPost,
+  mapOfacSdnRecord,
 };
 
 /** Unified mapper function signature */
@@ -48,4 +50,5 @@ export const MAPPERS: Record<string, MapperFn> = {
   'markets-fx':      mapMarketsInstrument,
   'reviews':         mapReview,
   'social':          mapSocialPost,
+  mapOfacSdnRecord,
 };
