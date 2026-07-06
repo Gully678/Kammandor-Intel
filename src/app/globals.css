@@ -2265,3 +2265,24 @@ html, body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── WS-2 Visual modes (FLIR / NVG / CRT) — map post-processing overlays ── */
+.vmode-overlay { position: fixed; inset: 0; pointer-events: none; z-index: 45; transition: opacity .3s ease; }
+.vmode-flir {
+  backdrop-filter: grayscale(1) contrast(1.5) sepia(1) hue-rotate(150deg) saturate(6) brightness(1.08);
+  -webkit-backdrop-filter: grayscale(1) contrast(1.5) sepia(1) hue-rotate(150deg) saturate(6) brightness(1.08);
+  background: radial-gradient(circle at 50% 50%, transparent 42%, rgba(0,0,0,.25) 100%);
+}
+.vmode-nvg {
+  backdrop-filter: grayscale(1) brightness(1.35) contrast(1.15) sepia(1) hue-rotate(55deg) saturate(4);
+  -webkit-backdrop-filter: grayscale(1) brightness(1.35) contrast(1.15) sepia(1) hue-rotate(55deg) saturate(4);
+  background: radial-gradient(circle at 50% 45%, rgba(0,255,90,.06) 0%, rgba(0,25,0,.5) 78%);
+}
+.vmode-crt {
+  backdrop-filter: saturate(1.15) contrast(1.08);
+  -webkit-backdrop-filter: saturate(1.15) contrast(1.08);
+  background:
+    repeating-linear-gradient(0deg, rgba(0,0,0,.13) 0px, rgba(0,0,0,.13) 1px, transparent 1px, transparent 3px),
+    radial-gradient(circle, transparent 55%, rgba(0,0,0,.38) 100%);
+}
+@media (prefers-reduced-motion: reduce) { .vmode-overlay { transition: none; } }
