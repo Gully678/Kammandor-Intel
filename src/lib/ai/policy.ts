@@ -44,13 +44,18 @@ export function tierForTask(task: string): TaskTier {
  * The router tries each in sequence, picking the first with a live key.
  *
  * fast:     openai (gpt-nano-class, cheapest) → google (gemma, free tier fallback)
- * balanced: zhipu  (glm — cost-efficient Chinese LLM) → google (gemma)
- * critical: anthropic (opus-class) → zhipu (cost fallback)
+ * balanced: openrouter (GLM 5.2 — cost-efficient) → google (gemma) → zhipu (legacy direct-GLM fallback)
+ * critical: anthropic (opus-class) → openrouter (GLM 5.2 cost fallback) → zhipu (legacy)
+ *
+ * GLM is served via OpenRouter (env OPENROUTER_API_KEY + AI_MODEL_OPENROUTER).
+ * The legacy direct-Zhipu provider is kept last as a harmless fallback: the
+ * router skips any provider whose key is absent, so an unset ZHIPU_API_KEY is
+ * a no-op.
  */
 const TIER_PROVIDER_MAP: Record<TaskTier, string[]> = {
   fast:     ['openai', 'google'],
-  balanced: ['zhipu', 'google'],
-  critical: ['anthropic', 'zhipu'],
+  balanced: ['openrouter', 'google', 'zhipu'],
+  critical: ['anthropic', 'openrouter', 'zhipu'],
 };
 
 /**

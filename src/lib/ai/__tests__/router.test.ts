@@ -58,8 +58,14 @@ describe('providersForTier', () => {
     expect(providersForTier('fast')[0]).toBe('openai');
   });
 
-  it('balanced[0] === zhipu', () => {
-    expect(providersForTier('balanced')[0]).toBe('zhipu');
+  it('balanced[0] === openrouter (GLM 5.2 via OpenRouter)', () => {
+    expect(providersForTier('balanced')[0]).toBe('openrouter');
+  });
+
+  it('critical falls back to openrouter before legacy zhipu', () => {
+    const c = providersForTier('critical');
+    expect(c[0]).toBe('anthropic');
+    expect(c.indexOf('openrouter')).toBeLessThan(c.indexOf('zhipu'));
   });
 });
 
