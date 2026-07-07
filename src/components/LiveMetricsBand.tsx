@@ -95,12 +95,11 @@ export default function LiveMetricsBand() {
       className="lmb-root"
       style={{
         position: 'fixed',
-        top: 0,
+        top: 34,
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 40,
         maxWidth: '96vw',
-        marginTop: 8,
         pointerEvents: 'auto',
       }}
     >
@@ -217,7 +216,7 @@ export default function LiveMetricsBand() {
       <style>{`
         @keyframes lmbPulse { 0%,100% { opacity: 1 } 50% { opacity: 0.35 } }
         @media (max-width: 640px) {
-          .lmb-root { top: auto !important; bottom: 8px; margin-top: 0 !important; }
+          .lmb-root { top: auto !important; bottom: 8px; }
         }
       `}</style>
     </div>
