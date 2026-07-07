@@ -11,6 +11,7 @@ import SearchBar from '@/components/SearchBar';
 import ScaleBar from '@/components/ScaleBar';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import VisualModeOverlay from '@/components/VisualModeOverlay';
+import LiveMetricsBand from '@/components/LiveMetricsBand';
 import SharePanel from '@/components/SharePanel';
 import ViewPresets from '@/components/ViewPresets';
 import KeyboardShortcuts from '@/components/KeyboardShortcuts';
@@ -1275,6 +1276,7 @@ export default function Dashboard() {
       <div className="vignette absolute inset-0 pointer-events-none z-[2]" />
       <div className="crt-scanlines absolute inset-0 pointer-events-none z-[3] opacity-[0.02]" />
       <VisualModeOverlay />
+      <LiveMetricsBand />
       {/* Corner frames — using explicit classes for Tailwind JIT compatibility */}
       {[
         { pos: 'top-0 left-0', vAnchor: 'top-0', hAnchor: 'left-0', hGrad: 'bg-gradient-to-r', vGrad: 'bg-gradient-to-b' },
