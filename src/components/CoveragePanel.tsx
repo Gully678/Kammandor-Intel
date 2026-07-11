@@ -343,7 +343,7 @@ export default function CoveragePanel(): React.JSX.Element {
         .cvg-overlay {
           position: fixed;
           inset: 0;
-          z-index: 46;
+          z-index: 55;
           background: rgba(6,5,10,.42);
           backdrop-filter: blur(2px);
         }
@@ -353,7 +353,7 @@ export default function CoveragePanel(): React.JSX.Element {
           top: 0;
           left: 0;
           bottom: 0;
-          z-index: 46;
+          z-index: 55;
           width: 440px;
           max-width: 92vw;
           display: flex;
