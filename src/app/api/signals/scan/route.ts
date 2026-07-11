@@ -3,6 +3,7 @@ import { getSecret } from '@/lib/secrets';
 import { resolveTenantFromRequest } from '@/lib/handoff/resolveTenant';
 import { requireBearerToken } from '@/lib/ontology/authRpc';
 import { matchSignals } from '@/lib/signals/match';
+import { fetchEngineWatchlist, mergeWatchlists } from '@/lib/signals/engineWatchlist';
 import { dedupeKey, dedupeKeyFromStoredAlert, toAlertRows } from '@/lib/signals/alerts';
 import type {
   IntelligenceAlertRow,
@@ -113,7 +114,12 @@ async function handleScan(req: NextRequest): Promise<NextResponse> {
   }
 
   // ------------------------------------------------- deterministic matching
-  const matched = matchSignals(events, watchlistResult.watchlist);
+  // Union the main-app km_monitoring_config watchlist with the engine-owned
+  // intel.tenant_watchlist (cross-Supabase / per-deal / per-campaign terms).
+  const _wlDb = getDbConfig();
+  const _engineWatchlist = _wlDb ? await fetchEngineWatchlist(_wlDb, tenant) : {};
+  const effectiveWatchlist = mergeWatchlists(watchlistResult.watchlist, _engineWatchlist);
+  const matched = matchSignals(events, effectiveWatchlist);
   if (matched.length === 0) {
     return NextResponse.json({
       scanned: events.length,

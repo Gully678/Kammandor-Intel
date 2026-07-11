@@ -16,6 +16,7 @@ import { MAPPERS, type MapperResult } from '@/lib/ontology/mappers';
 import { proposeCreateEntity, proposeCreateLink } from '@/lib/ontology/propose';
 import type { Entity, Link, ProposedEdit } from '@/lib/ontology/types';
 import type { IntelligenceAlertRow, SignalWatchlist } from '@/lib/signals/types';
+import { fetchEngineWatchlist, listEngineWatchlistTenants, mergeWatchlists } from '@/lib/signals/engineWatchlist';
 
 export const dynamic = 'force-dynamic';
 
@@ -123,12 +124,24 @@ async function runCycleRequest(req: NextRequest): Promise<NextResponse> {
     );
   }
 
+  // Fold in engine-owned watchlists (intel.tenant_watchlist): union per
+  // tenant AND include cross-Supabase tenants that have NO km_monitoring_config
+  // row of their own, so the automate cycle scans for them too.
+  const engineTenantIds = await listEngineWatchlistTenants(db);
+  const byId = new Map<string, SignalWatchlist>();
+  for (const t of tenantsResult.tenants) byId.set(t.id, t.watchlist);
+  for (const id of engineTenantIds) if (!byId.has(id)) byId.set(id, {});
+  const mergedTenants: AutomateTenant[] = [];
+  for (const [id, kmW] of byId) {
+    mergedTenants.push({ id, watchlist: mergeWatchlists(kmW, await fetchEngineWatchlist(db, id)) });
+  }
+
   // ------------------------------------------------------------- the cycle
   const connector = makeGdeltConnector();
   const deps: AutomateCycleDeps = {
-    tenants: tenantsResult.tenants,
+    tenants: mergedTenants,
     fetchEvents: () => connector.fetch(),
-    runPipeline: (batch) => runSharedPipeline(db, tenantsResult.tenants, batch),
+    runPipeline: (batch) => runSharedPipeline(db, mergedTenants, batch),
     persistTrace: (record) => insertAgentRun(db, record),
     insertAlerts: (rows) => insertAlertRows(db, rows),
     listRecentAlerts: (tenantId) => fetchRecentAlerts(db, tenantId),
