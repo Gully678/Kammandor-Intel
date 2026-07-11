@@ -43,7 +43,7 @@ export class AnthropicProvider implements ChatProvider {
 
   async complete(opts: ChatOptions): Promise<ChatResult> {
     const apiKey = await getSecretOrThrow('ANTHROPIC_API_KEY');
-    const model  = process.env.AI_MODEL_CRITICAL ?? 'claude-opus-4-5';
+    const model  = opts.model ?? process.env.AI_MODEL_CRITICAL ?? 'claude-opus-4-8';
 
     const body: AnthropicRequest = {
       model,

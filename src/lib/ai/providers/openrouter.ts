@@ -43,7 +43,7 @@ export class OpenRouterProvider implements ChatProvider {
 
   async complete(opts: ChatOptions): Promise<ChatResult> {
     const apiKey = await getSecretOrThrow('OPENROUTER_API_KEY');
-    const model  = process.env.AI_MODEL_OPENROUTER ?? 'openai/gpt-4o-mini';
+    const model  = opts.model ?? process.env.AI_MODEL_OPENROUTER ?? 'z-ai/glm-5.2';
 
     const messages: ORMessage[] = [];
     if (opts.system) {

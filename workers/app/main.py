@@ -56,6 +56,7 @@ _PROVIDER_KEYS = {
     "google":     "GOOGLE_API_KEY",
     "zhipu":      "ZHIPU_API_KEY",
     "openrouter": "OPENROUTER_API_KEY",
+    "xai":        "XAI_API_KEY",
 }
 
 
@@ -126,7 +127,7 @@ async def analyze(body: AnalyzeRequest) -> AnalyzeResponse:
             status_code=503,
             detail=(
                 "No AI provider keys configured. "
-                "Set at least one of ANTHROPIC_API_KEY / ZHIPU_API_KEY / OPENROUTER_API_KEY on Render."
+                "Set at least one of ANTHROPIC_API_KEY / OPENAI_API_KEY / OPENROUTER_API_KEY / XAI_API_KEY (via Supabase Vault)."
             ),
         )
 

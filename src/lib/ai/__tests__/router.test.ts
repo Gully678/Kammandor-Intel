@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ─── policy tests (pure functions, no mocking needed) ────────────────────────
 
-import { tierForTask, providersForTier } from '../policy';
+import { tierForTask, providersForTier, matrixForTier } from '../policy';
 
 describe('tierForTask', () => {
   it('extract → fast', () => {
@@ -49,23 +49,42 @@ describe('tierForTask', () => {
   });
 });
 
-describe('providersForTier', () => {
-  it('critical[0] === anthropic', () => {
+describe('model matrix', () => {
+  it('fast primary is Gemma 4 via OpenRouter (open-weight)', () => {
+    expect(matrixForTier('fast')[0]).toEqual({ provider: 'openrouter', model: 'google/gemma-4-26b-a4b-it' });
+  });
+
+  it('balanced primary is GLM 5.2 via OpenRouter', () => {
+    expect(matrixForTier('balanced')[0]).toEqual({ provider: 'openrouter', model: 'z-ai/glm-5.2' });
+  });
+
+  it('critical (interactive) leads with Opus 4.8, then Grok, then GLM', () => {
+    const c = matrixForTier('critical');
+    expect(c[0]).toEqual({ provider: 'anthropic', model: 'claude-opus-4-8' });
+    expect(c[1].provider).toBe('xai');
+    expect(c[2].provider).toBe('openrouter');
+  });
+
+  it('vision uses no Gemini (open-weight first)', () => {
+    const providers = matrixForTier('vision').map((s) => s.provider);
+    expect(providers).not.toContain('google');
+    expect(matrixForTier('vision')[0]).toEqual({ provider: 'openrouter', model: 'minimax/minimax-m3' });
+  });
+
+  it('every tier includes an open-weight OpenRouter step (cost-floor safety net)', () => {
+    for (const tier of ['fast', 'balanced', 'critical', 'vision'] as const) {
+      const providers = matrixForTier(tier).map((s) => s.provider);
+      expect(providers).toContain('openrouter');
+    }
+  });
+
+  it('vision task maps to the vision tier', () => {
+    expect(tierForTask('vision')).toBe('vision');
+    expect(tierForTask('image')).toBe('vision');
+  });
+
+  it('providersForTier stays derivable (back-compat): critical[0] === anthropic', () => {
     expect(providersForTier('critical')[0]).toBe('anthropic');
-  });
-
-  it('fast[0] === openai', () => {
-    expect(providersForTier('fast')[0]).toBe('openai');
-  });
-
-  it('balanced[0] === openrouter (GLM 5.2 via OpenRouter)', () => {
-    expect(providersForTier('balanced')[0]).toBe('openrouter');
-  });
-
-  it('critical falls back to openrouter before legacy zhipu', () => {
-    const c = providersForTier('critical');
-    expect(c[0]).toBe('anthropic');
-    expect(c.indexOf('openrouter')).toBeLessThan(c.indexOf('zhipu'));
   });
 });
 

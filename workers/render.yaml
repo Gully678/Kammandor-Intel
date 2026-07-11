@@ -7,30 +7,23 @@ services:
   startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
   healthCheckPath: /health
   plan: starter
+  # AI provider keys are resolved from the Supabase Vault (env → Vault fallback
+  # in app/config.py), so a worker only needs the two Supabase values below.
+  # Model IDs are NOT env pins anymore — the model matrix lives in app/moe.py.
+  # (No GOOGLE/Gemini, no direct Zhipu: GLM is served via OpenRouter.)
   envVars:
   - key: SUPABASE_URL
     sync: false
   - key: SUPABASE_SERVICE_ROLE_KEY
     sync: false
+  - key: PYTHON_VERSION
+    value: 3.11.9
+  # Optional direct-key overrides (leave unset to use the Vault):
   - key: ANTHROPIC_API_KEY
-    sync: false
-  - key: ZHIPU_API_KEY
     sync: false
   - key: OPENAI_API_KEY
     sync: false
-  - key: GOOGLE_API_KEY
-    sync: false
-  - key: AI_MODEL_ANTHROPIC
-    value: claude-opus-4-5
-  - key: AI_MODEL_OPENAI
-    value: gpt-4o-mini
-  - key: AI_MODEL_GOOGLE
-    value: gemini-1.5-flash
-  - key: AI_MODEL_ZHIPU
-    value: glm-4-flash
-  - key: PYTHON_VERSION
-    value: 3.11.9
   - key: OPENROUTER_API_KEY
     sync: false
-  - key: AI_MODEL_OPENROUTER
-    value: openai/gpt-4o-mini
+  - key: XAI_API_KEY
+    sync: false

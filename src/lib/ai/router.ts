@@ -1,47 +1,54 @@
 /**
- * KINTEL Phase 3 — MoE Router
+ * KINTEL — MoE Router (model-matrix + retry/backoff/timeout)
  *
- * routeComplete() resolves the task tier, iterates the provider preference
- * order, picks the first provider whose API key resolves (i.e. getSecret
- * succeeds), calls it, and returns on success.
- *
- * If ALL providers fail (keys absent or API errors) it throws a clear
- * aggregate error — never crashes the build; callers catch and return 422.
+ * routeComplete() resolves task → tier, then walks the tier's ordered
+ * {provider, model} matrix. For each step it:
+ *   1. probes the provider key (skips the step if absent),
+ *   2. attempts the call with a per-tier timeout,
+ *   3. retries transient failures (429/5xx/timeout) up to MAX_RETRIES with
+ *      exponential backoff,
+ *   4. on any hard failure, falls through to the next step.
+ * If every step fails, a universal open-weight fallback (OpenRouter GLM 5.2)
+ * is tried once, then a loud aggregate error is thrown (never a fake answer).
  */
 
 import { getSecret } from '@/lib/secrets';
-import { AnthropicProvider }   from './providers/anthropic';
+import { AnthropicProvider }  from './providers/anthropic';
 import { OpenAIProvider }     from './providers/openai';
 import { GoogleProvider }     from './providers/google';
 import { ZhipuProvider }      from './providers/zhipu';
 import { OpenRouterProvider } from './providers/openrouter';
-import { tierForTask, providersForTier, type TaskTier } from './policy';
+import { XaiProvider }        from './providers/xai';
+import {
+  tierForTask, matrixForTier, providersForTier,
+  UNIVERSAL_FALLBACK, TIER_TIMEOUT_MS,
+  type TaskTier, type ModelStep,
+} from './policy';
 import type { ChatProvider, ChatOptions } from './providers/types';
 
-// ---------------------------------------------------------------------------
-// Provider registry — instantiated once per process
-// ---------------------------------------------------------------------------
-
+// Provider registry — instantiated once per process.
+// google/zhipu remain registered (dormant) for back-compat; the matrix no
+// longer references them (no Gemini; GLM is served via OpenRouter).
 const PROVIDER_REGISTRY: Record<string, ChatProvider> = {
   anthropic:  new AnthropicProvider(),
   openai:     new OpenAIProvider(),
   google:     new GoogleProvider(),
   zhipu:      new ZhipuProvider(),
   openrouter: new OpenRouterProvider(),
+  xai:        new XaiProvider(),
 };
 
-// Env var names that hold each provider's key (for key-presence probe)
 const PROVIDER_KEY_ENV: Record<string, string> = {
   anthropic:  'ANTHROPIC_API_KEY',
   openai:     'OPENAI_API_KEY',
   google:     'GOOGLE_API_KEY',
   zhipu:      'ZHIPU_API_KEY',
   openrouter: 'OPENROUTER_API_KEY',
+  xai:        'XAI_API_KEY',
 };
 
-// ---------------------------------------------------------------------------
-// Public types
-// ---------------------------------------------------------------------------
+const MAX_RETRIES = 2;         // per step, on transient failures
+const BACKOFF_BASE_MS = 500;   // 0.5s, 1s, ...
 
 export interface RouteOptions extends ChatOptions {
   task: string;
@@ -54,71 +61,99 @@ export interface RouteResult {
   tier:     TaskTier;
 }
 
-// ---------------------------------------------------------------------------
-// routeComplete — the MoE dispatch function
-// ---------------------------------------------------------------------------
+// Re-export for callers/tests that import from the router.
+export { tierForTask, providersForTier };
 
-/**
- * Route a completion request through the MoE layer.
- *
- * Steps:
- *   1. Resolve task → tier (tierForTask)
- *   2. Get ordered provider list for tier (providersForTier)
- *   3. For each provider: probe key presence (getSecret, not getSecretOrThrow),
- *      skip if absent, attempt completion, return on success.
- *   4. If all fail, throw aggregate error listing providers + reasons.
- */
+function isTransient(err: unknown): boolean {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  return /\b(429|500|502|503|504)\b/.test(msg) || /timeout|timed out|econnreset|etimedout|fetch failed|network/.test(msg);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`timeout after ${ms}ms (${label})`)), ms);
+  });
+  try {
+    return await Promise.race([p, timeout]);
+  } finally {
+    clearTimeout(timer!);
+  }
+}
+
+/** Attempt one matrix step with per-tier timeout + transient retry. */
+async function attemptStep(
+  step: ModelStep,
+  chatOpts: ChatOptions,
+  timeoutMs: number,
+): Promise<{ text: string; model: string; provider: string }> {
+  const provider = PROVIDER_REGISTRY[step.provider];
+  if (!provider) throw new Error(`${step.provider}: not in registry`);
+
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await withTimeout(
+        provider.complete({ ...chatOpts, model: step.model }),
+        timeoutMs,
+        `${step.provider}:${step.model}`,
+      );
+    } catch (err) {
+      lastErr = err;
+      if (attempt < MAX_RETRIES && isTransient(err)) {
+        await sleep(BACKOFF_BASE_MS * Math.pow(2, attempt));
+        continue;
+      }
+      throw lastErr;
+    }
+  }
+  throw lastErr;
+}
+
 export async function routeComplete(opts: RouteOptions): Promise<RouteResult> {
   const { task, ...chatOpts } = opts;
   const tier      = tierForTask(task);
-  const providers = providersForTier(tier);
-
+  const steps     = matrixForTier(tier);
+  const timeoutMs = TIER_TIMEOUT_MS[tier];
   const errors: string[] = [];
 
-  for (const providerName of providers) {
-    // Probe key existence without throwing — skip unconfigured providers
-    const keyEnvName = PROVIDER_KEY_ENV[providerName];
-    const key = keyEnvName ? await getSecret(keyEnvName).catch(() => undefined) : undefined;
+  for (const step of steps) {
+    const keyEnv = PROVIDER_KEY_ENV[step.provider];
+    const key = keyEnv ? await getSecret(keyEnv).catch(() => undefined) : undefined;
     if (!key) {
-      errors.push(`${providerName}: key not configured (${keyEnvName ?? 'unknown'})`);
+      errors.push(`${step.provider}:${step.model} — key not configured (${keyEnv ?? 'unknown'})`);
       continue;
     }
-
-    const provider = PROVIDER_REGISTRY[providerName];
-    if (!provider) {
-      errors.push(`${providerName}: not found in registry`);
-      continue;
-    }
-
     try {
-      const result = await provider.complete(chatOpts);
+      const result = await attemptStep(step, chatOpts, timeoutMs);
       return { ...result, tier };
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      errors.push(`${providerName}: ${msg}`);
+      errors.push(`${step.provider}:${step.model} — ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
-  // Primary providers exhausted — try OpenRouter as universal fallback
-  if (!providers.includes('openrouter')) {
-    const orKey = await getSecret('OPENROUTER_API_KEY').catch(() => undefined);
-    if (orKey) {
-      const orProvider = PROVIDER_REGISTRY['openrouter'];
-      if (orProvider) {
-        try {
-          const result = await orProvider.complete(chatOpts);
-          return { ...result, tier };
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          errors.push(`openrouter (fallback): ${msg}`);
-        }
+  // Universal last-resort (open-weight, high uptime) if not already tried.
+  const alreadyTried = steps.some(
+    (s) => s.provider === UNIVERSAL_FALLBACK.provider && s.model === UNIVERSAL_FALLBACK.model,
+  );
+  if (!alreadyTried) {
+    const key = await getSecret(PROVIDER_KEY_ENV[UNIVERSAL_FALLBACK.provider]).catch(() => undefined);
+    if (key) {
+      try {
+        const result = await attemptStep(UNIVERSAL_FALLBACK, chatOpts, timeoutMs);
+        return { ...result, tier };
+      } catch (err) {
+        errors.push(`universal-fallback ${UNIVERSAL_FALLBACK.provider}:${UNIVERSAL_FALLBACK.model} — ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   }
 
-  // All providers exhausted
   throw new Error(
-    `[MoE] All providers failed for tier "${tier}" (task: "${task}"):\n` +
-    errors.map(e => `  • ${e}`).join('\n')
+    `[MoE] All steps failed for tier "${tier}" (task: "${task}"):\n` +
+    errors.map((e) => `  • ${e}`).join('\n'),
   );
 }

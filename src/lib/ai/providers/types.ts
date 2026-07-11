@@ -6,6 +6,8 @@
  */
 
 export interface ChatOptions {
+  /** explicit model slug override (set by the router matrix) */
+  model?:       string;
   system?:      string;
   prompt:       string;
   maxTokens?:   number;

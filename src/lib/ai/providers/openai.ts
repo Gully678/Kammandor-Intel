@@ -39,7 +39,7 @@ export class OpenAIProvider implements ChatProvider {
 
   async complete(opts: ChatOptions): Promise<ChatResult> {
     const apiKey = await getSecretOrThrow('OPENAI_API_KEY');
-    const model  = process.env.AI_MODEL_FAST ?? 'gpt-4o-mini';
+    const model  = opts.model ?? process.env.AI_MODEL_FAST ?? 'gpt-5.4-nano';
 
     const messages: OAIMessage[] = [];
     if (opts.system) {
