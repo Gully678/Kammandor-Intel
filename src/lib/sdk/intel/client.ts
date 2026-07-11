@@ -65,7 +65,30 @@ export interface IntelClient {
   query(graphQuery: GraphQuery): Promise<GraphQueryResponse>;
   /** The tenant's alert feed (dashboard feed). */
   listAlerts(params?: ListAlertsParams): Promise<ListAlertsResponse>;
+  /** List the tenant's watchlists (header + array terms). */
+  listWatchlists(): Promise<{ watchlists: unknown[] }>;
+  /** Create/replace a watchlist (scope org|deal|campaign, ref = deal/campaign id). */
+  upsertWatchlist(input: WatchlistUpsertInput): Promise<{ ok: boolean; watchlist: unknown }>;
+  /** List typed subjects (people/companies/products/creators/keywords/hashtags…). */
+  listWatchlistItems(params?: WatchlistItemsQuery): Promise<{ items: unknown[] }>;
+  /** Set/add typed subjects for a watchlist (mode 'replace' default, or 'add'). */
+  setWatchlistItems(input: SetWatchlistItemsInput): Promise<{ ok: boolean; count: number; items: unknown[] }>;
+  /** Remove typed subjects (by ids, or by scope/ref[+kinds/values]). */
+  removeWatchlistItems(input: RemoveWatchlistItemsInput): Promise<{ ok: boolean; removed: number }>;
 }
+
+export type WatchlistScope = 'org' | 'deal' | 'campaign';
+export type WatchlistItemKind =
+  | 'keyword' | 'hashtag' | 'handle' | 'person' | 'company' | 'product'
+  | 'creator' | 'commentator' | 'ticker' | 'geo' | 'topic';
+export interface WatchlistUpsertInput {
+  scope?: WatchlistScope; ref?: string; label?: string; source?: string; active?: boolean;
+  keywords?: string[]; entities?: string[]; tickers?: string[]; handles?: string[]; geos?: string[];
+}
+export interface WatchlistItemInput { kind: WatchlistItemKind; value: string; label?: string; source?: string; }
+export interface WatchlistItemsQuery { scope?: WatchlistScope; ref?: string; }
+export interface SetWatchlistItemsInput { scope?: WatchlistScope; ref?: string; mode?: 'add' | 'replace'; items: WatchlistItemInput[]; }
+export interface RemoveWatchlistItemsInput { scope?: WatchlistScope; ref?: string; ids?: string[]; kinds?: WatchlistItemKind[]; values?: string[]; }
 
 export function createIntelClient(options: IntelClientOptions): IntelClient {
   const { baseUrl, token, handoffToken, fetchImpl } = options;
@@ -88,7 +111,7 @@ export function createIntelClient(options: IntelClientOptions): IntelClient {
 
   async function request<T>(
     path: string,
-    init: { method: 'GET' | 'POST'; query?: Record<string, string>; body?: unknown },
+    init: { method: 'GET' | 'POST' | 'DELETE'; query?: Record<string, string>; body?: unknown },
   ): Promise<T> {
     let url = `${root}${path}`;
     if (init.query) {
@@ -150,6 +173,25 @@ export function createIntelClient(options: IntelClientOptions): IntelClient {
       if (params.severity !== undefined) query.severity = params.severity;
       if (params.limit !== undefined) query.limit = String(params.limit);
       return request<ListAlertsResponse>('/api/signals/alerts', { method: 'GET', query });
+    },
+
+    listWatchlists() {
+      return request<{ watchlists: unknown[] }>('/api/intel/watchlist', { method: 'GET' });
+    },
+    upsertWatchlist(input: WatchlistUpsertInput) {
+      return request<{ ok: boolean; watchlist: unknown }>('/api/intel/watchlist', { method: 'POST', body: input });
+    },
+    listWatchlistItems(params: WatchlistItemsQuery = {}) {
+      const query: Record<string, string> = {};
+      if (params.scope !== undefined) query.scope = params.scope;
+      if (params.ref !== undefined) query.ref = params.ref;
+      return request<{ items: unknown[] }>('/api/intel/watchlist/items', { method: 'GET', query });
+    },
+    setWatchlistItems(input: SetWatchlistItemsInput) {
+      return request<{ ok: boolean; count: number; items: unknown[] }>('/api/intel/watchlist/items', { method: 'POST', body: input });
+    },
+    removeWatchlistItems(input: RemoveWatchlistItemsInput) {
+      return request<{ ok: boolean; removed: number }>('/api/intel/watchlist/items', { method: 'DELETE', body: input });
     },
   };
 }
