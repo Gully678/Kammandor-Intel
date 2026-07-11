@@ -301,29 +301,30 @@ export default function CoveragePanel(): React.JSX.Element {
       <style>{`
         .cvg-launcher {
           position: fixed;
-          left: 0;
-          top: 50%;
-          transform: translateY(-50%);
-          z-index: 35;
+          left: 50%;
+          bottom: 40px;
+          transform: translateX(-50%);
+          z-index: 50;
           display: flex;
           align-items: center;
           gap: 8px;
-          padding: 16px 9px 16px 7px;
-          border: 1px solid color-mix(in srgb, var(--gold) 35%, transparent);
-          border-left: none;
-          border-radius: 0 12px 12px 0;
+          padding: 9px 18px;
+          border: 1px solid color-mix(in srgb, var(--gold) 38%, transparent);
+          border-radius: 999px;
           background: color-mix(in srgb, var(--ink) 90%, transparent);
           color: var(--on-ink);
           backdrop-filter: blur(10px);
-          box-shadow: 0 10px 34px rgba(0,0,0,.4);
+          box-shadow: 0 10px 34px rgba(0,0,0,.42);
           cursor: pointer;
-          writing-mode: vertical-rl;
-          text-orientation: mixed;
           font-family: ${MONO};
           font-size: 10px;
-          letter-spacing: .22em;
+          letter-spacing: .2em;
           text-transform: uppercase;
-          transition: box-shadow .2s ease, border-color .2s ease, background .2s ease;
+          transition: box-shadow .2s ease, border-color .2s ease, background .2s ease, transform .2s ease;
+        }
+        .cvg-launcher:active { transform: translateX(-50%) scale(0.97); }
+        @media (max-width: 640px) {
+          .cvg-launcher { bottom: auto; top: 84px; }
         }
         .cvg-launcher:hover,
         .cvg-launcher:focus-visible {
