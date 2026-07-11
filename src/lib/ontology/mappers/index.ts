@@ -50,5 +50,5 @@ export const MAPPERS: Record<string, MapperFn> = {
   'markets-fx':      mapMarketsInstrument,
   'reviews':         mapReview,
   'social':          mapSocialPost,
-  mapOfacSdnRecord,
+  'ofac-sdn':        mapOfacSdnRecord,
 };

@@ -4,8 +4,10 @@ import { buildProposedEditsFromRecords, type ProposedEditInsert } from '@/lib/on
 import { isSourceEnabled } from '@/config/featureFlags';
 import { getSecret } from '@/lib/secrets';
 import { requireBearerToken } from '@/lib/ontology/authRpc';
+import { createOfacSdnConnector } from '@/lib/pipeline/connectors/ofac-sdn';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 /**
  * KINTEL Phase 2 — Ontology ingest route
@@ -174,6 +176,8 @@ async function fetchRecordsForSource(source: string): Promise<FetchRecordsResult
         return await fetchWorldBankRecords();
       case 'un-comtrade':
         return await fetchUnComtradeRecords();
+      case 'ofac-sdn':
+        return await fetchOfacRecords();
       default:
         // No auto-fetch wired up for this source yet — caller must supply
         // `records` explicitly. Degrade gracefully rather than throwing.
@@ -207,6 +211,25 @@ async function fetchGleifRecords(): Promise<FetchRecordsResult> {
       : [];
 
   return { records: data };
+}
+
+/**
+ * OFAC SDN: keyless (US public-domain data via OpenSanctions CSV projection).
+ * Runs the governed connector (fetch -> parse), keeps only records with a
+ * usable identity (the connector's HARD expectation), and caps to a bounded
+ * sample so the /review queue stays sane. Never throws (caller degrades).
+ */
+async function fetchOfacRecords(): Promise<FetchRecordsResult> {
+  const LIMIT = 25;
+  const connector = createOfacSdnConnector((url: string) => fetch(url, { cache: 'no-store' }));
+  const batch = await connector.fetch();
+  const usable = batch.records.filter((r) => {
+    const x = r as Record<string, unknown>;
+    const has = (v: unknown) => typeof v === 'string' && v !== '';
+    return has(x.name) || has(x.id);
+  });
+  if (usable.length === 0) return { records: [], note: 'source not configured' };
+  return { records: usable.slice(0, LIMIT) };
 }
 
 /** World Bank: keyless. Fetch raw country rows (mapper expects the raw WB row shape). */

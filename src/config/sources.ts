@@ -35,6 +35,16 @@ export interface SourceDef {
 
 export const SOURCES: SourceDef[] = [
   {
+    key: 'ofac-sdn',
+    label: 'OFAC SDN Sanctions',
+    category: 'sanctions',
+    tier: 'free',
+    auth: 'none',
+    renderMode: 'enrichment',
+    enabledByDefault: true,
+    licence: { class: 'public-open', terms: 'US Treasury OFAC SDN list — US Government work, public domain (17 U.S.C. 105).' },
+  },
+  {
     key: 'world-bank',
     label: 'World Bank Country Risk',
     category: 'risk',
