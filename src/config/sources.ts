@@ -87,7 +87,7 @@ export const SOURCES: SourceDef[] = [
     tier: 'byok',
     auth: 'tenant-key',
     renderMode: 'panel',
-    enabledByDefault: false,
+    enabledByDefault: true,
     licence: { class: 'licensed', terms: 'Aggregation layer — inherits the licence terms of each underlying review connector; verify per platform' },
   },
   {
@@ -149,7 +149,7 @@ export const SOURCES: SourceDef[] = [
     tier: 'byok',
     auth: 'tenant-key',
     renderMode: 'panel',
-    enabledByDefault: false,
+    enabledByDefault: true,
     licence: { class: 'licensed', terms: 'Varies by platform — most restrict bulk redistribution; verify per-platform terms' },
   },
 ];
