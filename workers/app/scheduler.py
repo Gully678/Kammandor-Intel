@@ -14,9 +14,19 @@ no-op-safe harvests:
 Both baseline on first sight (0 signals) and later signal only net-new /
 net-changed. Both are clean no-ops when their keys / subjects are absent.
 
+  3. Governed ACTION executor — POST {INTEL_ENGINE_BASE}/api/ontology/actions/execute:
+     asks the engine to dequeue and execute governed 'notify' actions sitting
+     in intel.action (status 'queued'/'approved' — Mission C, the kinetic
+     ACTION layer, v1 executor; migrations/intel/0032_action_registry.sql,
+     src/app/api/ontology/actions/execute/route.ts). Runs ONCE per scheduler
+     tick (not per-tenant — the executor scopes its own tenant filter
+     internally), after the per-tenant harvest loop below.
+
 Invoke:  python -m app.scheduler
 GATED:   no SUPABASE creds => clean no-op. One tenant's failure never kills the
-         batch. Only genuine infra faults would surface in logs.
+         batch. Only genuine infra faults would surface in logs. The action
+         executor call is likewise best-effort: failures are logged into the
+         run summary, never fatal to the heartbeat.
 """
 
 from __future__ import annotations
@@ -77,6 +87,26 @@ async def _push_serp(tenant: str) -> dict[str, Any]:
         return {"error": str(exc)}
 
 
+async def _push_execute() -> dict[str, Any]:
+    """Ask the engine to execute governed 'notify' actions sitting in intel.action
+    (Mission C — the kinetic ACTION layer, v1 executor). Runs once per scheduler
+    tick, not per-tenant. Same auth/env conventions as _push_serp()."""
+    engine = os.environ.get("INTEL_ENGINE_BASE", "https://intel.kammandor.com").rstrip("/")
+    secret = await get_secret("AUTOMATE_SECRET")
+    if not secret:
+        return {"skipped": "AUTOMATE_SECRET not configured"}
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            r = await client.post(
+                f"{engine}/api/ontology/actions/execute",
+                headers={"x-automate-secret": secret, "Content-Type": "application/json"},
+                json={"limit": 25},
+            )
+        return r.json() if r.status_code == 200 else {"error": f"execute HTTP {r.status_code}"}
+    except Exception as exc:  # noqa: BLE001
+        return {"error": str(exc)}
+
+
 async def main() -> int:
     if not os.environ.get("SUPABASE_URL") or not os.environ.get("SUPABASE_SERVICE_ROLE_KEY"):
         print(json.dumps({"heartbeat": "skipped", "reason": "SUPABASE not configured"}))
@@ -100,7 +130,15 @@ async def main() -> int:
             entry["serp"] = {"error": str(exc)}
         summaries.append(entry)
 
-    print(json.dumps({"heartbeat": "done", "tenants": len(tenants), "results": summaries}, default=str))
+    try:
+        execute_result = await _push_execute()
+    except Exception as exc:  # noqa: BLE001
+        execute_result = {"error": str(exc)}
+
+    print(json.dumps(
+        {"heartbeat": "done", "tenants": len(tenants), "results": summaries, "execute": execute_result},
+        default=str,
+    ))
     return 0
 
 
