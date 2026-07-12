@@ -26,6 +26,8 @@ from pydantic import BaseModel
 
 from .config import get_secret
 from .graph import run_analysis
+from .harvest import harvest_tenant
+from fastapi import Header
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -74,6 +76,10 @@ class HealthResponse(BaseModel):
 class AnalyzeResponse(BaseModel):
     narrative:         str
     proposed_edit_ids: list[str]
+
+
+class HarvestRequest(BaseModel):
+    tenant: str
 
 # ---------------------------------------------------------------------------
 # Routes
@@ -147,3 +153,32 @@ async def analyze(body: AnalyzeRequest) -> AnalyzeResponse:
         narrative=         result.get("narrative", ""),
         proposed_edit_ids= result.get("proposed_edit_ids", []),
     )
+
+
+@app.post("/harvest", tags=["intel"])
+async def harvest(
+    body: HarvestRequest,
+    x_automate_secret: Optional[str] = Header(default=None, alias="x-automate-secret"),
+) -> dict:
+    """
+    Live-heartbeat harvest for one tenant (net-new signals).
+
+    Server-to-server only. Auth: the x-automate-secret header MUST equal the
+    AUTOMATE_SECRET env (the same shared secret the /api/signals/harvest-delta
+    engine endpoint accepts). This scrapes the tenant's Bright Data
+    collect-by-URL scrapers for each watchlist handle URL and PUSHES the typed
+    items to the engine's delta brain, which does grounding + net-new/net-changed.
+
+    Returns 401 if the secret is missing or wrong; 503 if AUTOMATE_SECRET is not
+    configured on the worker. Never raises on scrape failure (gated no-op + notes).
+    """
+    configured = await get_secret("AUTOMATE_SECRET")
+    if not configured:
+        raise HTTPException(status_code=503, detail="AUTOMATE_SECRET not configured on the worker.")
+    if not x_automate_secret or x_automate_secret != configured:
+        raise HTTPException(status_code=401, detail="Invalid or missing automate secret.")
+    if not body.tenant:
+        raise HTTPException(status_code=400, detail='"tenant" is required.')
+
+    result = await harvest_tenant(body.tenant)
+    return result
