@@ -1,162 +1,101 @@
 /**
- * KINTEL — Bright Data Social / People Adapter
+ * KINTEL — Bright Data Social / People Adapter (URL-driven).
  *
- * Uses Bright Data Datasets API v3 (licensed scraper service).
- * Verified endpoint paths from https://docs.brightdata.com/datasets/scrapers/linkedin/:
+ * Matches the tenant's ACTUAL Bright Data scrapers, which are all
+ * "Scraper API" datasets that COLLECT BY URL (or discover by profile/company/
+ * subreddit URL). There are no keyword-discovery scrapers, so this adapter is
+ * URL-first: give it a profile/company/post/subreddit URL and it routes to the
+ * matching dataset_id (per-platform env var) and triggers `[{ url }]`.
  *
- *   Async (batch, >20 URLs):
- *     POST https://api.brightdata.com/datasets/v3/trigger?dataset_id={id}&format=json
- *          Body: [{ url: "https://www.linkedin.com/..." }]  (or keyword-based inputs)
- *          Response: { snapshot_id: "s_..." }
- *     GET  https://api.brightdata.com/datasets/v3/progress/{snapshot_id}
- *          Response: { status: "collecting"|"digesting"|"ready"|"failed" }
- *     GET  https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}?format=json
- *          Response: JSON array of structured profile records
+ * Verified against docs.brightdata.com Web Scraper API:
+ *   POST https://api.brightdata.com/datasets/v3/scrape?dataset_id={id}&format=json   (sync, ≤ a few URLs)
+ *   POST https://api.brightdata.com/datasets/v3/trigger?dataset_id={id}&format=json  (async → snapshot)
+ *   Body: [{ "url": "https://…" }]   Auth: Bearer BRIGHTDATA_API_KEY
  *
- *   Synchronous (≤20 URLs, real-time):
- *     POST https://api.brightdata.com/datasets/v3/scrape?dataset_id={id}&format=json
- *          Body: [{ url: "https://www.linkedin.com/..." }]
- *          Response: JSON array of structured profile records (same shape)
+ * Dataset IDs come from the Bright Data control panel (the "collect by URL"
+ * scraper for each platform). Set the env var for each platform you use — see
+ * the registry below. A subject with no resolvable URL, or a platform whose
+ * dataset_id env var is unset, is skipped gracefully (never a wrong call).
  *
- * Auth: Bearer BRIGHTDATA_API_KEY
- *
- * Dataset IDs (founder must configure in Bright Data control panel + set env vars):
- *   BRIGHTDATA_DS_LI_PEOPLE   — LinkedIn People / Profiles dataset
- *   BRIGHTDATA_DS_LI_COMPANIES — LinkedIn Companies dataset
- *   BRIGHTDATA_DS_LI_JOBS     — LinkedIn Jobs dataset (optional)
- *   BRIGHTDATA_DS_INSTAGRAM   — Instagram Profiles dataset (optional)
- *   BRIGHTDATA_DS_X           — X/Twitter Profiles dataset (optional)
- *   BRIGHTDATA_DS_TIKTOK      — TikTok Profiles dataset (optional)
- *
- * Example LinkedIn People dataset_id (verify in your BD account):
- *   gd_l1viktl72bvl7bjuj0  (LinkedIn People — scrape by URL)
- *
- * This is a licensed-provider API client only. No scraping or anti-bot logic is
- * present here — Bright Data handles proxy rotation, CAPTCHA handling, and HTML
- * parsing as part of their licensed data product.
- *
- * GDPR / personal data — legal sign-off required before production deployment.
- * LinkedIn profile data, Instagram follower counts, X/Twitter bios, and similar
- * social media data constitute personal data under GDPR Art. 4(1).
- * A valid lawful basis (Art. 6) and a Data Processing Agreement (Art. 28) with
- * Bright Data Ltd are required before processing personal data in production.
- * Do not store or process personal data without compliance sign-off.
- * See Kammandor operator documentation for the required DPA checklist.
+ * GDPR: personal data — lawful basis + DPA with Bright Data required before prod.
  */
 
 import type { SocialAdapter, SocialProfileQueryParams, SocialProfilesResponse, SocialProfile } from '../index';
-import { syncScrape, triggerAndFetch } from '../../brightdata/client';
+import { syncScrape } from '../../brightdata/client';
 import { getSecretOrThrow } from '../../secrets';
 
-// ── Dataset ID resolution ────────────────────────────────────────────────────
+/** host substring → env var holding the Bright Data "collect by URL" dataset_id. */
+const PLATFORM_DATASET_ENV: Array<{ match: RegExp; env: string; platform: string }> = [
+  { match: /linkedin\.com\/company/i, env: 'BRIGHTDATA_DS_LI_COMPANIES', platform: 'linkedin-company' },
+  { match: /linkedin\.com\/(in|pub)\//i, env: 'BRIGHTDATA_DS_LI_PEOPLE',   platform: 'linkedin-person' },
+  { match: /(twitter|x)\.com/i,          env: 'BRIGHTDATA_DS_X_PROFILES',  platform: 'x' },
+  { match: /instagram\.com/i,            env: 'BRIGHTDATA_DS_IG_PROFILES', platform: 'instagram' },
+  { match: /tiktok\.com/i,               env: 'BRIGHTDATA_DS_TIKTOK_PROFILES', platform: 'tiktok' },
+  { match: /youtube\.com|youtu\.be/i,    env: 'BRIGHTDATA_DS_YT_CHANNELS', platform: 'youtube' },
+  { match: /facebook\.com/i,             env: 'BRIGHTDATA_DS_FB_PAGES',    platform: 'facebook' },
+  { match: /reddit\.com/i,               env: 'BRIGHTDATA_DS_REDDIT',      platform: 'reddit' },
+];
 
-function getDatasetId(type: 'company' | 'person' | 'job' | 'post'): string {
-  const envMap: Record<string, string | undefined> = {
-    person:  process.env.BRIGHTDATA_DS_LI_PEOPLE,
-    company: process.env.BRIGHTDATA_DS_LI_COMPANIES,
-    job:     process.env.BRIGHTDATA_DS_LI_JOBS,
-    post:    process.env.BRIGHTDATA_DS_LI_POSTS,
-  };
-  const id = envMap[type];
-  if (!id) {
-    throw new Error(
-      `provider key required: set BRIGHTDATA_DS_LI_${type.toUpperCase()}S env var ` +
-      `with the Bright Data dataset_id for LinkedIn ${type} data`
-    );
+function resolveDataset(url: string): { datasetId: string; platform: string } | null {
+  for (const e of PLATFORM_DATASET_ENV) {
+    if (e.match.test(url)) {
+      const id = process.env[e.env];
+      if (id && id.trim() !== '') return { datasetId: id.trim(), platform: e.platform };
+      return null; // matched platform but no dataset configured → skip gracefully
+    }
   }
-  return id;
+  return null;
 }
 
-async function requireToken(): Promise<void> {
-  // Validate key is present (throws with clear message if not)
-  await getSecretOrThrow('BRIGHTDATA_API_KEY');
+function str(v: unknown): string | undefined {
+  return typeof v === 'string' && v !== '' ? v : undefined;
+}
+function num(v: unknown): number | undefined {
+  return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
 }
 
-// ── Normalise LinkedIn person profile ────────────────────────────────────────
-// Verified response fields from https://docs.brightdata.com/datasets/scrapers/linkedin/introduction
-// Example person record: { name, city, country_code, current_company.name, followers, about, headline }
-function normalisePerson(raw: Record<string, unknown>): SocialProfile {
-  const currentCompany = raw.current_company as Record<string, unknown> | undefined;
-  const followers = typeof raw.followers === 'number'
-    ? raw.followers
-    : (typeof raw.connections === 'number' ? raw.connections : undefined);
-
+/** Generic normaliser across LinkedIn/X/IG/TikTok/YouTube/FB/Reddit "collect by URL" records. */
+function normalise(raw: Record<string, unknown>, requestedType: 'company' | 'person', url: string): SocialProfile {
+  const name =
+    str(raw.name) ?? str(raw.full_name) ?? str(raw.account_name) ?? str(raw.title) ??
+    str(raw.username) ?? str(raw.profile_name) ?? 'Unknown';
+  const outUrl = str(raw.url) ?? str(raw.profile_url) ?? str(raw.input_url) ?? url;
+  const followers = num(raw.followers) ?? num(raw.followers_count) ?? num(raw.connections) ?? num(raw.subscribers);
+  const employees = num(raw.employees) ?? num(raw.employees_count);
+  const headline =
+    str(raw.headline) ?? str(raw.bio) ?? str(raw.description) ?? str(raw.tagline) ??
+    (str(raw.about) ? String(raw.about).slice(0, 160) : undefined);
+  const location = str(raw.location) ?? str(raw.city) ?? str(raw.headquarters);
   return {
-    name:     String(raw.name ?? raw.full_name ?? 'Unknown'),
-    type:     'person',
-    url:      String(raw.url ?? raw.profile_url ?? raw.linkedin_url ?? ''),
-    headline: raw.headline ? String(raw.headline) : (raw.about ? String(raw.about).slice(0, 160) : undefined),
-    location: raw.city ? `${raw.city}${raw.country_code ? ', ' + raw.country_code : ''}` : undefined,
-    followers,
-    raw,
+    name, type: requestedType, url: outUrl, headline, location,
+    followers, employees: requestedType === 'company' ? employees : undefined, raw,
   };
-}
-
-// ── Normalise LinkedIn company profile ───────────────────────────────────────
-// Company record: { name, url, followers, employees, specialties, about, tagline }
-function normaliseCompany(raw: Record<string, unknown>): SocialProfile {
-  const employees = typeof raw.employees === 'number'
-    ? raw.employees
-    : (typeof raw.employee_count === 'number' ? raw.employee_count : undefined);
-  const followers = typeof raw.followers === 'number' ? raw.followers : undefined;
-
-  return {
-    name:      String(raw.name ?? 'Unknown'),
-    type:      'company',
-    url:       String(raw.url ?? raw.company_url ?? raw.linkedin_url ?? ''),
-    headline:  raw.tagline ? String(raw.tagline) : (raw.specialties ? String(raw.specialties).slice(0, 160) : undefined),
-    location:  raw.headquarters ? String(raw.headquarters) : undefined,
-    followers,
-    employees,
-    raw,
-  };
-}
-
-function normalise(raw: Record<string, unknown>, type: 'person' | 'company'): SocialProfile {
-  return type === 'company' ? normaliseCompany(raw) : normalisePerson(raw);
 }
 
 export class BrightDataSocialAdapter implements SocialAdapter {
   readonly name = 'brightdata';
 
-  async getProfiles({
-    type,
-    query,
-    url,
-    limit = 10,
-  }: SocialProfileQueryParams): Promise<SocialProfilesResponse> {
-    await requireToken();
+  async getProfiles({ type, query, url, limit = 10 }: SocialProfileQueryParams): Promise<SocialProfilesResponse> {
+    await getSecretOrThrow('BRIGHTDATA_API_KEY');
 
-    const profileType = (type === 'company' || type === 'person') ? type : 'person';
-    const datasetId = getDatasetId(type);
-
-    // Build inputs array: prefer direct URL, fall back to keyword/query
-    // LinkedIn scraper input shape: { url: "https://www.linkedin.com/..." }
-    // For keyword-based discovery, shape is { keyword: "..." } — async only
-    let inputs: Record<string, unknown>[];
-    if (url) {
-      inputs = [{ url }];
-    } else if (query) {
-      inputs = [{ keyword: query }];
-    } else {
-      throw new Error('social adapter: either url or query must be provided');
+    // URL-driven ONLY (matches the tenant's collect-by-URL scrapers). A name/query
+    // with no URL cannot be resolved by these scrapers — return empty, not a wrong call.
+    const target = url ?? (query && /^https?:\/\//i.test(query) ? query : undefined);
+    if (!target) {
+      return { profiles: [], provider: 'brightdata' };
+    }
+    const resolved = resolveDataset(target);
+    if (!resolved) {
+      // platform not recognised, or its dataset_id env var is not configured
+      return { profiles: [], provider: 'brightdata' };
     }
 
-    // Use sync path for single-URL lookups (real-time, ≤20 inputs)
-    // Use async trigger/poll/fetch for keyword discovery (may return many results)
-    let raw: Record<string, unknown>[];
-    if (url) {
-      // Direct URL: use synchronous scrape for low latency
-      raw = await syncScrape(datasetId, inputs);
-    } else {
-      // Keyword/discovery: use async trigger→poll→fetch
-      raw = await triggerAndFetch(datasetId, inputs);
-    }
+    const requestedType: 'company' | 'person' =
+      type === 'company' || resolved.platform === 'linkedin-company' ? 'company' : 'person';
 
-    const profiles: SocialProfile[] = raw
-      .slice(0, limit)
-      .map(item => normalise(item, profileType));
-
+    // Sync scrape by URL (real-time); Bright Data handles the collection.
+    const raw = await syncScrape(resolved.datasetId, [{ url: target }]);
+    const profiles = raw.slice(0, limit).map((r) => normalise(r, requestedType, target));
     return { profiles, provider: 'brightdata' };
   }
 }

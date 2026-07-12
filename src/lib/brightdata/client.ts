@@ -51,12 +51,28 @@ export interface BrightDataTriggerResult {
  * POST /datasets/v3/trigger?dataset_id={datasetId}&format=json
  * Returns the snapshot_id to poll.
  */
+export interface BrightDataTriggerOptions {
+  /** Keyword-discovery collection — appends type=discover_new&discover_by=keyword. */
+  discoverByKeyword?: boolean;
+  /** Cap results per input (Bright Data limit_per_input). */
+  limitPerInput?: number;
+  /** Include the errors report with results. */
+  includeErrors?: boolean;
+}
+
 export async function triggerCollection(
   datasetId: string,
   inputs: Record<string, unknown>[],
+  opts: BrightDataTriggerOptions = {},
 ): Promise<BrightDataTriggerResult> {
   const token = await requireToken();
-  const url = `${BD_BASE}/datasets/v3/trigger?dataset_id=${encodeURIComponent(datasetId)}&format=json`;
+  let url = `${BD_BASE}/datasets/v3/trigger?dataset_id=${encodeURIComponent(datasetId)}&format=json`;
+  // Bright Data keyword DISCOVERY requires these query params (verified against
+  // docs.brightdata.com Web Scraper API "Scraper async requests"). Without them a
+  // {keyword} body is not treated as a discovery input and returns nothing.
+  if (opts.discoverByKeyword) url += '&type=discover_new&discover_by=keyword';
+  if (opts.limitPerInput && opts.limitPerInput > 0) url += `&limit_per_input=${opts.limitPerInput}`;
+  if (opts.includeErrors) url += '&include_errors=true';
 
   const res = await fetch(url, {
     method: 'POST',
@@ -131,8 +147,9 @@ const MAX_POLL_ITERS = 60; // 90 s total
 export async function triggerAndFetch(
   datasetId: string,
   inputs: Record<string, unknown>[],
+  opts: BrightDataTriggerOptions = {},
 ): Promise<Record<string, unknown>[]> {
-  const { snapshotId } = await triggerCollection(datasetId, inputs);
+  const { snapshotId } = await triggerCollection(datasetId, inputs, opts);
 
   for (let i = 0; i < MAX_POLL_ITERS; i++) {
     await sleep(1500);
