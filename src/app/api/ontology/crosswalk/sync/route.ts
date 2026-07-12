@@ -88,18 +88,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const contactIds = idsOf(contacts);
     const dealIds = idsOf(deals);
 
-    const rows: Record<string, string>[] = [];
+    // PostgREST bulk inserts require every row to carry IDENTICAL keys
+    // (PGRST102), so each row states the full column set with explicit nulls.
+    const rows: Record<string, string | null>[] = [];
     let alreadyLinked = 0;
     const counts = { companies: 0, people: 0, deals: 0 };
+
+    const fullRow = (id: string, kind: 'company' | 'contact' | 'deal'): Record<string, string | null> => ({
+      entity_id:  id,
+      company_id: kind === 'company' ? id : null,
+      contact_id: kind === 'contact' ? id : null,
+      km_deal_id: kind === 'deal'    ? id : null,
+    });
 
     for (const e of entities as { id?: unknown }[]) {
       const id = typeof e.id === 'string' ? e.id.toLowerCase() : null;
       if (!id) continue;
       if (linked.has(id)) { alreadyLinked++; continue; }
       // UUID EQUALITY ONLY — the deterministic identity proof (see banner).
-      if (companyIds.has(id))      { rows.push({ entity_id: id, company_id: id });  counts.companies++; }
-      else if (contactIds.has(id)) { rows.push({ entity_id: id, contact_id: id });  counts.people++; }
-      else if (dealIds.has(id))    { rows.push({ entity_id: id, km_deal_id: id });  counts.deals++; }
+      if (companyIds.has(id))      { rows.push(fullRow(id, 'company'));  counts.companies++; }
+      else if (contactIds.has(id)) { rows.push(fullRow(id, 'contact'));  counts.people++; }
+      else if (dealIds.has(id))    { rows.push(fullRow(id, 'deal'));     counts.deals++; }
     }
 
     if (rows.length > 0) {
