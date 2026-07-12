@@ -8,6 +8,8 @@
  *   getObject    → GET  /api/ontology/objects/[id]
  *   query        → POST /api/ontology/query   (the §10.2 graph surface)
  *   listAlerts   → GET  /api/signals/alerts
+ *   listActions  → GET  /api/ontology/actions      (Mission C, v1 draft)
+ *   requestAction→ POST /api/ontology/actions      (Mission C, v1 draft)
  *
  * Request/response types are the EXACT types the routes use
  * (src/lib/sdk/intel/types.ts — single source of truth, which itself
@@ -27,11 +29,15 @@
 import type {
   GraphQuery,
   GraphQueryResponse,
+  ListActionsParams,
+  ListActionsResponse,
   ListAlertsParams,
   ListAlertsResponse,
   ListObjectsParams,
   ListObjectsResponse,
   ObjectDetailResponse,
+  RequestActionInput,
+  RequestActionResponse,
 } from './types';
 
 export interface IntelClientOptions {
@@ -75,6 +81,10 @@ export interface IntelClient {
   setWatchlistItems(input: SetWatchlistItemsInput): Promise<{ ok: boolean; count: number; items: unknown[] }>;
   /** Remove typed subjects (by ids, or by scope/ref[+kinds/values]). */
   removeWatchlistItems(input: RemoveWatchlistItemsInput): Promise<{ ok: boolean; removed: number }>;
+  /** List the tenant's action queue (Mission C, v1 draft) — optionally filter by status. */
+  listActions(params?: ListActionsParams): Promise<ListActionsResponse>;
+  /** Request a new action — server resolves risk_tier from the catalogue and inserts 'queued'/'awaiting_approval' only, never 'approved'. */
+  requestAction(input: RequestActionInput): Promise<RequestActionResponse>;
 }
 
 export type WatchlistScope = 'org' | 'deal' | 'campaign';
@@ -192,6 +202,16 @@ export function createIntelClient(options: IntelClientOptions): IntelClient {
     },
     removeWatchlistItems(input: RemoveWatchlistItemsInput) {
       return request<{ ok: boolean; removed: number }>('/api/intel/watchlist/items', { method: 'DELETE', body: input });
+    },
+
+    listActions(params: ListActionsParams = {}): Promise<ListActionsResponse> {
+      const query: Record<string, string> = {};
+      if (params.status !== undefined) query.status = params.status;
+      if (params.limit !== undefined) query.limit = String(params.limit);
+      return request<ListActionsResponse>('/api/ontology/actions', { method: 'GET', query });
+    },
+    requestAction(input: RequestActionInput): Promise<RequestActionResponse> {
+      return request<RequestActionResponse>('/api/ontology/actions', { method: 'POST', body: input });
     },
   };
 }

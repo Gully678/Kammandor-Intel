@@ -93,8 +93,18 @@ export function buildProposedEditsFromRecords(
       // Ground link proposals against the entity ids produced by THIS
       // record's mapping (the mapper's link source/target ids reference
       // these), so the eval gate's grounding check is real rather than
-      // merely "well-formed UUID".
+      // merely "well-formed UUID". Also fold in the mapper's
+      // anchorEntityIds (Mission A, incremental link grounding) — ids of
+      // entities that already exist in intel.entity from a prior ingest
+      // run, which a mapper may ground a link against without re-emitting
+      // them as entities here (see gleif.ts's MapperResult.anchorEntityIds
+      // doc comment and mapKammandorDealGraph for the reference impl).
       const knownEntityIds = new Set((entities as Entity[]).map(e => e.id));
+      if (Array.isArray(mapped.anchorEntityIds)) {
+        for (const anchorId of mapped.anchorEntityIds) {
+          knownEntityIds.add(anchorId);
+        }
+      }
 
       for (const entity of entities as Entity[]) {
         const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...entityFields } = entity;

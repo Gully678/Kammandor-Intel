@@ -1,17 +1,21 @@
 /**
- * KINTEL Phase 2 — Ontology ingest route auth-hardening tests (slice 3b)
+ * KINTEL Phase 2 — Ontology ingest route auth-hardening tests (slice 3b,
+ * hardened again — see route.ts's POST doc comment and authRpc.ts's
+ * verifySupabaseUserToken doc comment for the full rationale).
  *
  * The ingest route (src/app/api/ontology/ingest/route.ts) writes only to
- * intel.proposed_edit, but as of slice 3b it must still reject anonymous
- * callers. These tests assert:
- *   - No Authorization header -> 401, before any body/source validation.
+ * intel.proposed_edit, but must reject anonymous AND forged callers. These
+ * tests assert:
+ *   - No auth at all -> 401.
  *   - Malformed Authorization header -> 401.
- *   - A syntactically valid bearer token clears the auth gate and the
- *     route proceeds to its existing (pre-3b) body validation — proven by
- *     getting a 400 for a bad body rather than a 401. This does NOT
- *     exercise real Supabase verification (there is none at this layer —
- *     see authRpc.ts's docstring); the RPC-calling routes are what
- *     actually verify the token server-side.
+ *   - A syntactically valid but JUNK bearer token -> 401 (Supabase's
+ *     /auth/v1/user rejects it — this is the actual hardening: the old
+ *     presence-only check would have let this through).
+ *   - A valid x-automate-secret (matching env AUTOMATE_SECRET) -> passes the
+ *     gate WITHOUT ever calling Supabase.
+ *   - A wrong x-automate-secret -> 401, even when AUTOMATE_SECRET is set.
+ *   - A bearer token that Supabase's /auth/v1/user resolves to a real user
+ *     -> passes the gate.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -29,8 +33,29 @@ function makeRequest(opts: { headers?: Record<string, string>; body?: unknown })
   });
 }
 
-describe('POST /api/ontology/ingest — auth hardening (slice 3b)', () => {
-  it('returns 401 when Authorization header is missing', async () => {
+describe('POST /api/ontology/ingest — auth hardening', () => {
+  const ORIGINAL_AUTOMATE    = process.env.AUTOMATE_SECRET;
+  const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
+  const ORIGINAL_ANON_KEY    = process.env.SUPABASE_ANON_KEY;
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    delete process.env.AUTOMATE_SECRET;
+    process.env.SUPABASE_URL      = 'https://stub.supabase.co';
+    process.env.SUPABASE_ANON_KEY = 'stub-anon-key';
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    if (ORIGINAL_AUTOMATE === undefined) delete process.env.AUTOMATE_SECRET;
+    else process.env.AUTOMATE_SECRET = ORIGINAL_AUTOMATE;
+    if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
+    if (ORIGINAL_ANON_KEY === undefined) delete process.env.SUPABASE_ANON_KEY;
+    else process.env.SUPABASE_ANON_KEY = ORIGINAL_ANON_KEY;
+  });
+
+  it('returns 401 when no auth is provided at all (no Authorization, no x-automate-secret)', async () => {
     const req = makeRequest({ body: { source: 'gleif', tenant: 'test-tenant' } });
     const res = await POST(req);
     expect(res.status).toBe(401);
@@ -56,11 +81,58 @@ describe('POST /api/ontology/ingest — auth hardening (slice 3b)', () => {
     expect(res.status).toBe(401);
   });
 
-  it('clears the auth gate with a valid Bearer header and proceeds to body validation', async () => {
-    // Empty body -> the route's existing (pre-3b) validation rejects with
-    // 400 "Unknown or missing source" — proving we got PAST the 401 gate.
+  it('returns 401 for a syntactically valid but JUNK bearer token (Supabase rejects it)', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      expect(String(url)).toContain('/auth/v1/user');
+      return new Response(JSON.stringify({ error: 'invalid_token' }), { status: 401 });
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
     const req = makeRequest({
-      headers: { Authorization: 'Bearer test-access-token' },
+      headers: { Authorization: 'Bearer junk-token-not-a-real-session' },
+      body: { source: 'gleif', tenant: 'test-tenant' },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(401);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes the auth gate with a valid x-automate-secret WITHOUT calling Supabase', async () => {
+    process.env.AUTOMATE_SECRET = 'test-automate-secret';
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const req = makeRequest({
+      headers: { 'x-automate-secret': 'test-automate-secret' },
+      body: {},
+    });
+    const res = await POST(req);
+    // 400 (past the auth gate) for missing "source" — proves auth passed.
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toMatch(/source/i);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a wrong x-automate-secret even when AUTOMATE_SECRET is configured', async () => {
+    process.env.AUTOMATE_SECRET = 'correct-secret';
+    const req = makeRequest({
+      headers: { 'x-automate-secret': 'wrong-secret' },
+      body: {},
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(401);
+  });
+
+  it('clears the auth gate with a Supabase-verified Bearer token and proceeds to body validation', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      expect(String(url)).toContain('/auth/v1/user');
+      return new Response(JSON.stringify({ id: 'real-user-uuid' }), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const req = makeRequest({
+      headers: { Authorization: 'Bearer real-session-token' },
       body: {},
     });
     const res = await POST(req);
@@ -70,10 +142,12 @@ describe('POST /api/ontology/ingest — auth hardening (slice 3b)', () => {
   });
 
   it('is case-insensitive on the Authorization header name and Bearer scheme', async () => {
-    const req = makeRequest({
-      headers: { authorization: 'bearer test-access-token' },
-      body: {},
-    });
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ id: 'real-user-uuid' }), { status: 200 }),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const req = makeRequest({ headers: { authorization: 'bearer real-session-token' }, body: {} });
     const res = await POST(req);
     // 400 (past the gate), not 401.
     expect(res.status).toBe(400);
@@ -87,12 +161,15 @@ describe('POST /api/ontology/ingest — auth hardening (slice 3b)', () => {
 // to intel.proposed_edit; see the route's governance banner) and asserts
 // each inserted row carries a structured `evaluation` object produced at
 // propose time. Also re-asserts the governance boundary: exactly one fetch,
-// targeting only /rest/v1/proposed_edit.
+// targeting only /rest/v1/proposed_edit. Auth uses x-automate-secret here
+// (not a bearer token) precisely so this stays a single-fetch test — a
+// bearer token would add a second fetch (the Supabase verification call).
 // ---------------------------------------------------------------------------
 
 describe('POST /api/ontology/ingest — persists evaluation on inserted proposed_edit rows (v2 §12.4)', () => {
-  const ORIGINAL_URL = process.env.SUPABASE_URL;
-  const ORIGINAL_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const ORIGINAL_URL      = process.env.SUPABASE_URL;
+  const ORIGINAL_KEY      = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const ORIGINAL_AUTOMATE = process.env.AUTOMATE_SECRET;
   const originalFetch = globalThis.fetch;
 
   const GLEIF_RECORD = {
@@ -111,6 +188,7 @@ describe('POST /api/ontology/ingest — persists evaluation on inserted proposed
   beforeEach(() => {
     process.env.SUPABASE_URL              = 'https://stub.supabase.co';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'stub-service-role-key';
+    process.env.AUTOMATE_SECRET           = 'stub-automate-secret';
   });
 
   afterEach(() => {
@@ -119,6 +197,8 @@ describe('POST /api/ontology/ingest — persists evaluation on inserted proposed
     else process.env.SUPABASE_URL = ORIGINAL_URL;
     if (ORIGINAL_KEY === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     else process.env.SUPABASE_SERVICE_ROLE_KEY = ORIGINAL_KEY;
+    if (ORIGINAL_AUTOMATE === undefined) delete process.env.AUTOMATE_SECRET;
+    else process.env.AUTOMATE_SECRET = ORIGINAL_AUTOMATE;
   });
 
   it('every inserted proposed_edit row carries a structured evaluation object', async () => {
@@ -126,7 +206,7 @@ describe('POST /api/ontology/ingest — persists evaluation on inserted proposed
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const req = makeRequest({
-      headers: { Authorization: 'Bearer test-access-token' },
+      headers: { 'x-automate-secret': 'stub-automate-secret' },
       body: { source: 'gleif', tenant: 'test-tenant', records: [GLEIF_RECORD] },
     });
     const res = await POST(req);

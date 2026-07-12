@@ -27,6 +27,15 @@
  *  - Link evidence: each link carries a provenance entry whose property_path
  *    is `link:{type}->{target_id}` and whose raw is the verbatim relationship
  *    row, attributed to the link's source entity (matches approve RPC shape).
+ *  - Incremental link grounding (v2): a link's endpoints are grounded when
+ *    EITHER emitted as a sibling entity in THIS record OR present in
+ *    `rec.anchor_entity_ids` (already-approved intel.entity rows from a
+ *    prior ingest run — see fetchKammandorDealsRecords in
+ *    src/app/api/ontology/ingest/route.ts). Anchors are never re-emitted as
+ *    entities and are folded into the eval gate's grounding set via
+ *    MapperResult.anchorEntityIds (see buildProposedEditsFromRecords). An
+ *    endpoint that is neither a sibling nor an anchor is still silently
+ *    skipped — that remains deliberate (no fabricated grounding).
  */
 
 import type { Entity, Link, Provenance } from '../types';
@@ -62,6 +71,15 @@ export interface KammandorDealGraphRecord {
   contacts?: unknown[];
   deals?: unknown[];
   relationships?: unknown[];
+  /**
+   * Ids of entities that ALREADY EXIST in intel.entity for this tenant
+   * (approved in a prior ingest run — see src/app/api/ontology/ingest/
+   * route.ts's fetchKammandorDealsRecords, which populates this from a
+   * read of intel.entity). Links below may ground against these ids in
+   * addition to this record's own freshly-emitted sibling entities; these
+   * ids are NEVER re-emitted as entities.
+   */
+  anchor_entity_ids?: unknown[];
   fetched_at?: string;
 }
 
@@ -129,6 +147,16 @@ export function mapKammandorDealGraph(input: unknown, tenantId: string): MapperR
 
   const base = { tenant_id: tenantId, created_at: ts, updated_at: ts };
   const emitted = new Set<string>();
+
+  // Already-approved entities (from a prior ingest run) that link proposals
+  // in THIS record may ground against, in addition to freshly emitted
+  // siblings — see the `anchor_entity_ids` doc comment above. Entity
+  // emission itself is unaffected: anchors are never (re-)emitted here.
+  const anchors = new Set<string>(
+    (Array.isArray(rec.anchor_entity_ids) ? rec.anchor_entity_ids : [])
+      .map(asUuid)
+      .filter((id): id is string => id !== null),
+  );
 
   // ---- Companies -> entity type 'company' --------------------------------
   for (const rowU of Array.isArray(rec.companies) ? rec.companies : []) {
@@ -204,9 +232,13 @@ export function mapKammandorDealGraph(input: unknown, tenantId: string): MapperR
     const partyType = asText(row.party_type);
     const partyId   = partyType === 'contact' ? asUuid(row.contact_id) : asUuid(row.company_id);
     if (!dealId || !partyId) continue;
-    // Ground strictly against sibling entities from THIS record — guarantees
-    // the eval gate's dangling-endpoint check and the DB FKs both hold.
-    if (!emitted.has(dealId) || !emitted.has(partyId)) continue;
+    // Ground against sibling entities from THIS record OR an already-
+    // approved anchor entity — guarantees the eval gate's dangling-endpoint
+    // check and the DB FKs both hold (anchors are, by definition, already
+    // real rows in intel.entity).
+    const dealGrounded  = emitted.has(dealId)  || anchors.has(dealId);
+    const partyGrounded = emitted.has(partyId) || anchors.has(partyId);
+    if (!dealGrounded || !partyGrounded) continue;
 
     const key = `${partyId}->isNamedInDeal->${dealId}`;
     if (linkSeen.has(key)) continue;
@@ -239,7 +271,9 @@ export function mapKammandorDealGraph(input: unknown, tenantId: string): MapperR
     const roleTitle = asText(row.role_title);
     if (!personId || !companyId || !roleTitle) continue;
     if (!/director/i.test(roleTitle)) continue; // deterministic — never inferred
-    if (!emitted.has(personId) || !emitted.has(companyId)) continue;
+    const personGrounded  = emitted.has(personId)  || anchors.has(personId);
+    const companyGrounded = emitted.has(companyId) || anchors.has(companyId);
+    if (!personGrounded || !companyGrounded) continue;
 
     const key = `${personId}->isDirectorOf->${companyId}`;
     if (linkSeen.has(key)) continue;
@@ -259,5 +293,11 @@ export function mapKammandorDealGraph(input: unknown, tenantId: string): MapperR
     );
   }
 
-  return { entities, links, provenance, preserveEntityIds: true };
+  return {
+    entities,
+    links,
+    provenance,
+    preserveEntityIds: true,
+    ...(anchors.size > 0 ? { anchorEntityIds: [...anchors] } : {}),
+  };
 }

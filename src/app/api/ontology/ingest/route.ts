@@ -3,7 +3,7 @@ import { MAPPERS } from '@/lib/ontology/mappers';
 import { buildProposedEditsFromRecords, type ProposedEditInsert } from '@/lib/ontology/ingest';
 import { isSourceEnabled } from '@/config/featureFlags';
 import { getSecret } from '@/lib/secrets';
-import { requireBearerToken } from '@/lib/ontology/authRpc';
+import { requireBearerToken, verifySupabaseUserToken } from '@/lib/ontology/authRpc';
 import { createOfacSdnConnector } from '@/lib/pipeline/connectors/ofac-sdn';
 
 export const dynamic = 'force-dynamic';
@@ -47,14 +47,74 @@ interface IngestBody {
   records?: unknown[];
 }
 
+// ---------------------------------------------------------------------------
+// Auth gate (hardened) — see the POST handler's doc comment above for the
+// full rationale. Two independent, mutually-exclusive-in-practice paths:
+//   (a) x-automate-secret header, compared against env AUTOMATE_SECRET.
+//   (b) Authorization: Bearer <token>, verified against Supabase's
+//       /auth/v1/user endpoint via verifySupabaseUserToken().
+// Returns a single 401-shaped error when neither path succeeds. Never
+// throws — verifySupabaseUserToken() itself never throws, and the
+// automate-secret comparison is a plain string comparison.
+// ---------------------------------------------------------------------------
+
+interface IngestAuthOk {
+  ok: true;
+}
+
+interface IngestAuthErr {
+  ok:    false;
+  error: string;
+}
+
+async function authenticateIngestRequest(req: NextRequest): Promise<IngestAuthOk | IngestAuthErr> {
+  const automateSecret = process.env.AUTOMATE_SECRET;
+  const providedSecret  = req.headers.get('x-automate-secret');
+  if (automateSecret && providedSecret && providedSecret === automateSecret) {
+    return { ok: true };
+  }
+
+  const bearer = requireBearerToken(req);
+  if (bearer.ok) {
+    const verified = await verifySupabaseUserToken(bearer.token);
+    if (verified.ok) {
+      return { ok: true };
+    }
+    return { ok: false, error: verified.error };
+  }
+
+  // Neither auth path succeeded. If the caller attempted the automate-secret
+  // path (header present but wrong/unconfigured), say so; otherwise surface
+  // the bearer-extraction error (e.g. "Missing Authorization header.").
+  return {
+    ok:    false,
+    error: providedSecret ? 'Invalid automate secret.' : bearer.error,
+  };
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  // Slice 3b hardening: this route only ever writes to intel.proposed_edit
-  // (status='pending') — see the governance banner above — but it is still
-  // a write endpoint and must not be callable anonymously. Require a bearer
-  // token from any authenticated caller (any tenant/role); the STRICTER
-  // tenant+role authz lives in intel.approve_proposed_edit /
-  // intel.reject_proposed_edit for the actual governed write path.
-  const auth = requireBearerToken(req);
+  // Slice 3b hardening (superseded below): this route only ever writes to
+  // intel.proposed_edit (status='pending') — see the governance banner
+  // above — but it is still a write endpoint and must not be callable
+  // anonymously or by a forged caller.
+  //
+  // Auth model: accept EITHER
+  //   (a) header `x-automate-secret` exactly matching env AUTOMATE_SECRET
+  //       (server-to-server automation — same convention as
+  //       src/app/api/signals/harvest-delta/route.ts) — if AUTOMATE_SECRET
+  //       is not configured this path can never succeed; OR
+  //   (b) `Authorization: Bearer <token>` where <token> is verified against
+  //       Supabase's own /auth/v1/user endpoint (verifySupabaseUserToken in
+  //       src/lib/ontology/authRpc.ts) — i.e. a REAL, currently-valid user
+  //       session, not merely a non-empty string.
+  // This replaces the old presence-only bearer check (requireBearerToken()
+  // alone), which let ANY non-empty "Authorization: Bearer x" header pass —
+  // nothing downstream ever validated that token because this route's DB
+  // write always uses the service-role key, never the caller's token. The
+  // STRICTER tenant+role authz still lives in intel.approve_proposed_edit /
+  // intel.reject_proposed_edit for the actual governed write path; this
+  // gate only decides whether the caller may PROPOSE anything at all.
+  const auth = await authenticateIngestRequest(req);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: 401 });
   }
@@ -342,11 +402,24 @@ async function insertProposedEdits(edits: ProposedEditInsert[]): Promise<InsertR
 // or already sitting in a pending proposal). The ONLY write in this route
 // remains insertProposedEdits -> intel.proposed_edit.
 //
-// v1 limitation (documented, deliberate): links are proposed only when BOTH
-// endpoints are part of the same fresh batch (the mapper grounds strictly
-// against sibling entities, which is also what the eval gate checks and what
-// the DB FKs require at approval). Incremental link-only additions against
-// already-approved entities are a future slice.
+// Incremental link grounding (v2): links no longer require BOTH endpoints to
+// be part of the same fresh batch. This route now also fetches the tenant's
+// ALREADY-APPROVED intel.entity ids and passes them through on the composite
+// record as `anchor_entity_ids` (see mapKammandorDealGraph /
+// buildProposedEditsFromRecords). The mapper grounds a link when either
+// endpoint is a fresh sibling entity OR a known anchor, so a relationship
+// row whose deal/company/contact was approved in an earlier ingest run can
+// now produce a link proposal instead of being silently skipped.
+//
+// v1 limitation still remaining (documented, deliberate): isDirectorOf links
+// are derived from the `contacts` array itself (role_title matching
+// /director/i), and this route only ever includes FRESH contacts in that
+// array — an already-approved director contact with no other fresh signal
+// this run is therefore never re-examined for isDirectorOf, even though it
+// would now be eligible as an anchor if it appeared. Re-scanning already-
+// approved contacts purely to look for new isDirectorOf links is a future
+// slice (it would require re-fetching + re-diffing links for non-fresh
+// contacts, which this route does not currently do).
 // ---------------------------------------------------------------------------
 
 const UUID_RE_INGEST = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -397,6 +470,13 @@ async function fetchKammandorDealsRecords(tenant: string): Promise<FetchRecordsR
     if (typeof row.id === 'string') knownEntityIds.add(row.id.toLowerCase());
   }
 
+  // Anchors = ALREADY-APPROVED intel.entity ids only (captured here, BEFORE
+  // pending-proposal ids are folded into knownEntityIds below). Pending
+  // create_entity proposals are not yet real entities, so they are not
+  // valid link-grounding anchors — they remain in knownEntityIds purely to
+  // keep this route's own "fresh" dedup idempotent.
+  const anchorEntityIds = new Set<string>(knownEntityIds);
+
   const knownLinkKeys = new Set<string>();
   for (const row of existingLinks as Record<string, unknown>[]) {
     knownLinkKeys.add(
@@ -432,10 +512,15 @@ async function fetchKammandorDealsRecords(tenant: string): Promise<FetchRecordsR
     return !knownLinkKeys.has(`${party}->isNamedInDeal->${row.deal_id}`.toLowerCase());
   });
 
+  // Only "nothing new" when there is neither a fresh entity NOR a fresh
+  // relationship — a relationship can now be worth proposing on its own
+  // (as a link) even when both its endpoints are already-approved anchors
+  // and therefore contribute zero fresh entities.
   if (
     freshCompanies.length === 0 &&
     freshContacts.length === 0 &&
-    freshDeals.length === 0
+    freshDeals.length === 0 &&
+    freshRelationships.length === 0
   ) {
     return { records: [], note: 'deal graph already proposed or materialised — nothing new' };
   }
@@ -443,12 +528,13 @@ async function fetchKammandorDealsRecords(tenant: string): Promise<FetchRecordsR
   return {
     records: [
       {
-        record_type:   'deal_graph',
-        companies:     freshCompanies,
-        contacts:      freshContacts,
-        deals:         freshDeals,
-        relationships: freshRelationships,
-        fetched_at:    new Date().toISOString(),
+        record_type:       'deal_graph',
+        companies:         freshCompanies,
+        contacts:          freshContacts,
+        deals:             freshDeals,
+        relationships:     freshRelationships,
+        anchor_entity_ids: [...anchorEntityIds],
+        fetched_at:        new Date().toISOString(),
       },
     ],
   };

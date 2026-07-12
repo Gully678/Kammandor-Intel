@@ -52,14 +52,16 @@ batch-proposed link was guaranteed a loud FK failure at approval.
   no-regression tests (vitest).
 
 ## Known limitations / follow-ups (honest list)
-1. **Incremental links:** links are proposed only when both endpoints are in
-   the same fresh batch. Link-only additions against already-approved
-   entities = future slice (needs anchor-entity grounding in the eval gate).
-2. **Ingest route auth is presence-only:** `requireBearerToken` accepts ANY
-   non-empty bearer string — it never verifies the JWT. Damage is bounded
-   (pending proposals only; human gate downstream) but this should be
-   hardened to real JWT verification or the `x-automate-secret` pattern.
-   PRE-EXISTING, not introduced by this slice.
+1. **Incremental links:** FIXED (2026-07-13 slice): the connector passes the
+   tenant's already-approved intel.entity ids as `anchor_entity_ids`; the
+   mapper grounds links against fresh siblings OR anchors (never re-emitting
+   anchors), and the eval gate's grounding set includes them. Remaining gap
+   (documented in the route): already-approved director contacts with no
+   fresh signal are not re-scanned for new isDirectorOf links.
+2. **Ingest route auth is presence-only:** FIXED (2026-07-13 slice): the
+   route now requires EITHER `x-automate-secret` matching `AUTOMATE_SECRET`
+   OR a bearer token verified live against Supabase `/auth/v1/user`
+   (`verifySupabaseUserToken` in src/lib/ontology/authRpc.ts).
 3. **Approval order matters:** entities before links (FK). The /review flow
    should approve create_entity proposals first; a link approved too early
    fails loudly and stays pending — retry after its endpoints exist.

@@ -102,6 +102,77 @@ describe('mapKammandorDealGraph', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Incremental link grounding (v2, opt-in via anchor_entity_ids) — a link
+// endpoint may now be grounded either as a fresh sibling entity in THIS
+// record OR as an id in `anchor_entity_ids` (already approved in a prior
+// ingest run). Entity emission itself is unaffected: anchors are NEVER
+// (re-)emitted as entities, only referenced by links.
+// ---------------------------------------------------------------------------
+
+describe('mapKammandorDealGraph — anchor_entity_ids (incremental link grounding)', () => {
+  const ANOTHER_DEAL_ID = '99999999-9999-4999-8999-999999999999';
+
+  it('grounds isNamedInDeal when the deal endpoint is ONLY an anchor, not a fresh sibling', () => {
+    const rec = graphRecord({
+      deals: [], // DEAL_ID deliberately NOT in this batch — simulates an already-approved deal
+      relationships: [
+        { id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', deal_id: DEAL_ID, party_type: 'company', company_id: COMPANY_ID, role: 'seller' },
+      ],
+      anchor_entity_ids: [DEAL_ID],
+    });
+    const { links, entities, anchorEntityIds } = mapKammandorDealGraph(rec, TENANT);
+
+    const named = links.filter(l => l.type === 'isNamedInDeal');
+    expect(named).toHaveLength(1);
+    expect(named[0].source_entity_id).toBe(COMPANY_ID);
+    expect(named[0].target_entity_id).toBe(DEAL_ID);
+
+    expect(anchorEntityIds).toContain(DEAL_ID);
+  });
+
+  it('never emits a create_entity for an anchor id (anchors are referenced, never re-created)', () => {
+    const rec = graphRecord({
+      deals: [],
+      relationships: [
+        { id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', deal_id: DEAL_ID, party_type: 'company', company_id: COMPANY_ID, role: 'seller' },
+      ],
+      anchor_entity_ids: [DEAL_ID],
+    });
+
+    const { entities } = mapKammandorDealGraph(rec, TENANT);
+    expect(entities.some(e => e.id === DEAL_ID)).toBe(false);
+
+    const { edits } = buildProposedEditsFromRecords('kammandor-deals', TENANT, [rec]);
+    const entityEdits = edits.filter(e => e.kind === 'create_entity');
+    expect(entityEdits.some(e => e.payload.id === DEAL_ID)).toBe(false);
+
+    // The anchor-grounded create_link edit must PASS the eval gate's
+    // grounding check (not be flagged as a dangling link), because
+    // buildProposedEditsFromRecords folds anchorEntityIds into the
+    // knownEntityIds set the eval gate checks against.
+    const linkEdit = edits.find(
+      e => e.kind === 'create_link' && (e.payload as { type?: string }).type === 'isNamedInDeal',
+    )!;
+    expect(linkEdit).toBeDefined();
+    const evaluation = linkEdit.evaluation as { passed: boolean };
+    expect(evaluation.passed).toBe(true);
+  });
+
+  it('still skips a relationship whose endpoint is neither a fresh sibling nor an anchor', () => {
+    const rec = graphRecord({
+      deals: [],
+      relationships: [
+        { id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', deal_id: DEAL_ID, party_type: 'company', company_id: COMPANY_ID, role: 'seller' },
+      ],
+      // Anchors an UNRELATED id — DEAL_ID itself is neither emitted nor anchored.
+      anchor_entity_ids: [ANOTHER_DEAL_ID],
+    });
+    const { links } = mapKammandorDealGraph(rec, TENANT);
+    expect(links.filter(l => l.type === 'isNamedInDeal')).toHaveLength(0);
+  });
+});
+
 describe('buildProposedEditsFromRecords — kammandor-deals opt-in', () => {
   it('folds the preserved id AND provenance into create_entity payloads', () => {
     const { edits, skipped } = buildProposedEditsFromRecords('kammandor-deals', TENANT, [graphRecord()]);

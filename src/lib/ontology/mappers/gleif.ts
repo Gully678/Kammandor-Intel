@@ -21,6 +21,19 @@ export interface MapperResult {
    * never with pseudo/hashed uuids.
    */
   preserveEntityIds?: boolean;
+  /**
+   * Opt-in (Mission A, incremental link grounding): ids of entities that
+   * ALREADY EXIST in intel.entity for this tenant (i.e. approved in a prior
+   * ingest run, not part of THIS record's own entities array). A mapper may
+   * ground a link against one of these ids in addition to its own freshly
+   * emitted sibling entities — see mapKammandorDealGraph for the reference
+   * implementation. These ids are NEVER re-emitted as entities and never
+   * appear in `entities` above; buildProposedEditsFromRecords folds them
+   * into the eval gate's grounding set (knownEntityIds) alongside this
+   * record's own mapped entity ids, so a create_link proposal referencing
+   * an anchor is not wrongly flagged as a dangling link.
+   */
+  anchorEntityIds?: string[];
 }
 
 // ---------------------------------------------------------------------------

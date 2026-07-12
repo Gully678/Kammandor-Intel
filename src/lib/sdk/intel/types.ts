@@ -15,8 +15,16 @@
  */
 
 import type { LicenceClass, LinkType, ObjectType } from '@/lib/ontology/types';
+import type {
+  Action,
+  ActionStatus,
+  ActionType,
+  ActionTypeKey,
+  RiskTier,
+} from '@/lib/ontology/actions';
 
 export type { LicenceClass, LinkType, ObjectType };
+export type { Action, ActionStatus, ActionType, ActionTypeKey, RiskTier };
 
 // ---------------------------------------------------------------------------
 // Object summaries (GET /api/ontology/objects, graph query nodes)
@@ -179,6 +187,39 @@ export interface ListAlertsParams {
 
 export interface ListAlertsResponse {
   alerts: AlertRecord[];
+}
+
+// ---------------------------------------------------------------------------
+// Actions (Mission C — the kinetic ACTION layer, v1 draft)
+// GET  /api/ontology/actions  — list the tenant's action queue
+// POST /api/ontology/actions  — request a new action
+// Value types (Action, ActionType, ActionStatus, ActionTypeKey, RiskTier)
+// come from '@/lib/ontology/actions' — mirrors intel.action / intel.action_type
+// (migrations/intel/0032_action_registry.sql). Never duplicated here.
+// ---------------------------------------------------------------------------
+
+export interface ListActionsParams {
+  /** Filter by status (e.g. 'awaiting_approval'). Not validated client-side — an unknown value simply matches nothing. */
+  status?: string;
+  /** Page size — default 50, max 200. */
+  limit?: number;
+}
+
+export interface ListActionsResponse {
+  actions: Action[];
+}
+
+export interface RequestActionInput {
+  /** intel.action_type.key — server resolves risk_tier from the catalogue, never trusts a client-supplied tier. */
+  actionTypeKey: string;
+  subjectEntityId?: string;
+  payload?: Record<string, unknown>;
+  rationale?: string;
+}
+
+export interface RequestActionResponse {
+  ok: boolean;
+  action: Action;
 }
 
 // ---------------------------------------------------------------------------

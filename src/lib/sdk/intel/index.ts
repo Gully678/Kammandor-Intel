@@ -10,6 +10,10 @@
 export { createIntelClient, IntelApiError } from './client';
 export type { IntelClient, IntelClientOptions } from './client';
 export type {
+  Action,
+  ActionStatus,
+  ActionType,
+  ActionTypeKey,
   AlertRecord,
   ApiErrorBody,
   GraphEdge,
@@ -19,6 +23,8 @@ export type {
   GraphTraverseStep,
   LicenceClass,
   LinkType,
+  ListActionsParams,
+  ListActionsResponse,
   ListAlertsParams,
   ListAlertsResponse,
   ListObjectsParams,
@@ -29,6 +35,9 @@ export type {
   ObjectSummary,
   ObjectType,
   ProvenanceRecord,
+  RequestActionInput,
+  RequestActionResponse,
+  RiskTier,
   TraverseDirection,
   VersionRecord,
 } from './types';

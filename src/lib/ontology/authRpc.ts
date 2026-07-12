@@ -53,6 +53,77 @@ export function requireBearerToken(req: Request): BearerAuthResult | BearerAuthE
   return { ok: true, token };
 }
 
+/**
+ * Verify that a caller-supplied bearer token is a REAL, currently-valid
+ * Supabase auth session — not merely a syntactically well-formed string.
+ *
+ * WHY THIS EXISTS: requireBearerToken() above only checks that the
+ * Authorization header looks like "Bearer <non-empty-string>"; it cannot
+ * and does not check that <token> was actually issued by this project's
+ * Supabase auth server. That is a safe gate for routes (the proposed-edit
+ * approve/reject routes, src/app/api/signals/scan/route.ts, the
+ * tenant/starter-pack route) whose only use of the token is to hand it
+ * straight to a PostgREST RPC call via callIntelRpcAsUser() — PostgREST
+ * itself rejects a bogus/expired token the moment the RPC executes, so the
+ * REAL verification happens downstream, at the database. It was NOT a safe
+ * gate for src/app/api/ontology/ingest/route.ts: that route performs its
+ * actual write with the SERVICE ROLE key (never the caller's token) and was
+ * using bearer-header PRESENCE ALONE to decide whether to let the request
+ * through. Because the token is never forwarded to Postgres/PostgREST there,
+ * nothing downstream ever validated it — literally any non-empty
+ * "Authorization: Bearer x" header passed the gate. This helper closes that
+ * hole by asking Supabase's own GoTrue endpoint (`/auth/v1/user`) to resolve
+ * the token to a real user before the caller is treated as authenticated.
+ *
+ * Never throws: a network failure, a non-200 response, or a response body
+ * that isn't the expected shape all resolve to `{ ok: false }` rather than
+ * an exception, so callers can treat this as a plain boolean gate.
+ */
+export async function verifySupabaseUserToken(
+  token: string,
+): Promise<{ ok: true; userId: string } | { ok: false; status: 401; error: string }> {
+  try {
+    const anonKey = process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    const res = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey:        anonKey ?? '',
+      },
+    });
+
+    if (res.status !== 200) {
+      return {
+        ok:     false,
+        status: 401,
+        error:  `Bearer token could not be verified by Supabase (HTTP ${res.status}).`,
+      };
+    }
+
+    const body: unknown = await res.json().catch(() => null);
+    const id = body !== null && typeof body === 'object'
+      ? (body as Record<string, unknown>).id
+      : undefined;
+
+    if (typeof id !== 'string' || id === '') {
+      return {
+        ok:     false,
+        status: 401,
+        error:  'Supabase verified the token but returned no user id.',
+      };
+    }
+
+    return { ok: true, userId: id };
+  } catch (err) {
+    return {
+      ok:     false,
+      status: 401,
+      error:  `Bearer token verification failed: ${err instanceof Error ? err.message : 'network error'}.`,
+    };
+  }
+}
+
 export interface CallRpcAsUserResult {
   ok:     boolean;
   status: number;
