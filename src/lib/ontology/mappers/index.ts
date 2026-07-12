@@ -16,6 +16,7 @@ import { mapMarketsInstrument }     from './markets';
 import { mapReview }                from './reviews';
 import { mapSocialPost }            from './social';
 import { mapOfacSdnRecord }         from './ofac-sdn';
+import { mapKammandorDealGraph }    from './kammandor-deals';
 
 export type { MapperResult };
 
@@ -31,6 +32,7 @@ export {
   mapReview,
   mapSocialPost,
   mapOfacSdnRecord,
+  mapKammandorDealGraph,
 };
 
 /** Unified mapper function signature */
@@ -51,4 +53,5 @@ export const MAPPERS: Record<string, MapperFn> = {
   'reviews':         mapReview,
   'social':          mapSocialPost,
   'ofac-sdn':        mapOfacSdnRecord,
+  'kammandor-deals': mapKammandorDealGraph,
 };

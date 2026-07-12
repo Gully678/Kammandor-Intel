@@ -93,7 +93,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (Array.isArray(body.records)) {
     records = body.records;
   } else {
-    const fetched = await fetchRecordsForSource(source);
+    const fetched = await fetchRecordsForSource(source, tenant);
     records = fetched.records;
     note = fetched.note;
   }
@@ -163,7 +163,7 @@ interface FetchRecordsResult {
   note?:   string;
 }
 
-async function fetchRecordsForSource(source: string): Promise<FetchRecordsResult> {
+async function fetchRecordsForSource(source: string, tenant: string): Promise<FetchRecordsResult> {
   try {
     if (!isSourceEnabled(source)) {
       return { records: [], note: 'source not configured' };
@@ -178,6 +178,8 @@ async function fetchRecordsForSource(source: string): Promise<FetchRecordsResult
         return await fetchUnComtradeRecords();
       case 'ofac-sdn':
         return await fetchOfacRecords();
+      case 'kammandor-deals':
+        return await fetchKammandorDealsRecords(tenant);
       default:
         // No auto-fetch wired up for this source yet — caller must supply
         // `records` explicitly. Degrade gracefully rather than throwing.
@@ -328,4 +330,126 @@ async function insertProposedEdits(edits: ProposedEditInsert[]): Promise<InsertR
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'insert failed' };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Kammandor deal graph (first-party, Mission A) — reads the main app's
+// tenant-scoped rows from THIS Supabase project and emits ONE composite
+// 'deal_graph' record for the kammandor-deals mapper.
+//
+// GOVERNANCE: reads only. public.* rows are read verbatim; intel.* is read
+// ONLY to make ingest idempotent (skip rows already materialised as entities
+// or already sitting in a pending proposal). The ONLY write in this route
+// remains insertProposedEdits -> intel.proposed_edit.
+//
+// v1 limitation (documented, deliberate): links are proposed only when BOTH
+// endpoints are part of the same fresh batch (the mapper grounds strictly
+// against sibling entities, which is also what the eval gate checks and what
+// the DB FKs require at approval). Incremental link-only additions against
+// already-approved entities are a future slice.
+// ---------------------------------------------------------------------------
+
+const UUID_RE_INGEST = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function fetchKammandorDealsRecords(tenant: string): Promise<FetchRecordsResult> {
+  const supabaseUrl    = process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return { records: [], note: 'source not configured' };
+  }
+  if (!UUID_RE_INGEST.test(tenant)) {
+    return { records: [], note: 'tenant must be an organisation uuid' };
+  }
+
+  const baseHeaders: Record<string, string> = {
+    apikey:        serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+  };
+  const intelHeaders: Record<string, string> = { ...baseHeaders, 'Accept-Profile': 'intel' };
+
+  const get = async (path: string, headers: Record<string, string>): Promise<unknown[]> => {
+    const res = await fetch(`${supabaseUrl}/rest/v1/${path}`, { headers });
+    if (!res.ok) {
+      throw new Error(`kammandor-deals fetch ${path.split('?')[0]}: HTTP ${res.status}`);
+    }
+    const data: unknown = await res.json();
+    return Array.isArray(data) ? data : [];
+  };
+
+  // First-party rows, tenant-scoped, verbatim.
+  const [companies, contacts, deals, relationships] = await Promise.all([
+    get(`companies?organization_id=eq.${tenant}&select=*`, baseHeaders),
+    get(`contacts?organization_id=eq.${tenant}&select=*`, baseHeaders),
+    get(`deals?organization_id=eq.${tenant}&select=*`, baseHeaders),
+    get(`km_counterparty_relationships?organization_id=eq.${tenant}&select=*`, baseHeaders),
+  ]);
+
+  // Idempotence guards (reads only).
+  const [existingEntities, pendingEdits, existingLinks] = await Promise.all([
+    get(`entity?tenant_id=eq.${tenant}&select=id`, intelHeaders),
+    get(`proposed_edit?tenant_id=eq.${tenant}&status=eq.pending&select=kind,payload`, intelHeaders),
+    get(`link?tenant_id=eq.${tenant}&select=source_entity_id,target_entity_id,type`, intelHeaders),
+  ]);
+
+  const knownEntityIds = new Set<string>();
+  for (const row of existingEntities as { id?: unknown }[]) {
+    if (typeof row.id === 'string') knownEntityIds.add(row.id.toLowerCase());
+  }
+
+  const knownLinkKeys = new Set<string>();
+  for (const row of existingLinks as Record<string, unknown>[]) {
+    knownLinkKeys.add(
+      `${row.source_entity_id}->${row.type}->${row.target_entity_id}`.toLowerCase(),
+    );
+  }
+
+  for (const row of pendingEdits as { kind?: unknown; payload?: unknown }[]) {
+    const payload = (row.payload ?? {}) as Record<string, unknown>;
+    if (row.kind === 'create_entity' && typeof payload.id === 'string') {
+      knownEntityIds.add(payload.id.toLowerCase());
+    }
+    if (row.kind === 'create_link') {
+      knownLinkKeys.add(
+        `${payload.source_entity_id}->${payload.type}->${payload.target_entity_id}`.toLowerCase(),
+      );
+    }
+  }
+
+  const fresh = (rows: unknown[]): unknown[] =>
+    rows.filter(r => {
+      const id = (r as { id?: unknown }).id;
+      return typeof id === 'string' && !knownEntityIds.has(id.toLowerCase());
+    });
+
+  const freshCompanies = fresh(companies);
+  const freshContacts  = fresh(contacts);
+  const freshDeals     = fresh(deals);
+
+  const freshRelationships = relationships.filter(r => {
+    const row = r as Record<string, unknown>;
+    const party = row.party_type === 'contact' ? row.contact_id : row.company_id;
+    return !knownLinkKeys.has(`${party}->isNamedInDeal->${row.deal_id}`.toLowerCase());
+  });
+
+  if (
+    freshCompanies.length === 0 &&
+    freshContacts.length === 0 &&
+    freshDeals.length === 0
+  ) {
+    return { records: [], note: 'deal graph already proposed or materialised — nothing new' };
+  }
+
+  return {
+    records: [
+      {
+        record_type:   'deal_graph',
+        companies:     freshCompanies,
+        contacts:      freshContacts,
+        deals:         freshDeals,
+        relationships: freshRelationships,
+        fetched_at:    new Date().toISOString(),
+      },
+    ],
+  };
 }

@@ -12,6 +12,15 @@ export interface MapperResult {
   entities:   Entity[];
   links:      Link[];
   provenance: Provenance[];
+  /**
+   * Opt-in (Mission A, migration intel_0029): when true, ingest KEEPS each
+   * entity's mapper-supplied id in the create_entity payload so the approve
+   * RPC materialises the entity under that id and sibling create_link
+   * proposals can bind to it. Only set this when your ids are REAL uuids
+   * that cannot collide across tenants (e.g. first-party source-row uuids) —
+   * never with pseudo/hashed uuids.
+   */
+  preserveEntityIds?: boolean;
 }
 
 // ---------------------------------------------------------------------------

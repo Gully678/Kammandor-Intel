@@ -17,7 +17,7 @@
 import { MAPPERS } from './mappers';
 import { proposeCreateEntity, proposeCreateLink } from './propose';
 import { evaluate } from '@/lib/ai/analyze';
-import type { Entity, Link, ProposedEdit } from './types';
+import type { Entity, Link, Provenance, ProposedEdit } from './types';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -79,7 +79,16 @@ export function buildProposedEditsFromRecords(
 
   for (const record of records) {
     try {
-      const { entities, links, provenance } = mapper(record, tenant);
+      const mapped = mapper(record, tenant);
+      const { entities, links, provenance } = mapped;
+      // Opt-in (Mission A): first-party mappers whose entity ids are REAL,
+      // globally-unique uuids keep those ids in the payload so the approve
+      // RPC (migration intel_0029) materialises entities under them and the
+      // sibling create_link proposals can bind. Also folds the mapper's
+      // provenance into each payload so the approve RPC persists verbatim
+      // lineage to intel.entity_provenance. Existing mappers (flag unset)
+      // are byte-for-byte unaffected.
+      const preserveIds = mapped.preserveEntityIds === true;
 
       // Ground link proposals against the entity ids produced by THIS
       // record's mapping (the mapper's link source/target ids reference
@@ -90,23 +99,33 @@ export function buildProposedEditsFromRecords(
       for (const entity of entities as Entity[]) {
         const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...entityFields } = entity;
         const rationale = buildRationale(source, 'entity', entity, provenance);
-        edits.push(
-          withEvaluation(
-            proposeCreateEntity(tenant, entityFields, INGEST_PROPOSED_BY, rationale),
-            knownEntityIds,
-          ),
-        );
+        const edit = proposeCreateEntity(tenant, entityFields, INGEST_PROPOSED_BY, rationale);
+        if (preserveIds) {
+          edit.payload.id = entity.id;
+          const entityProv = (provenance as Provenance[]).filter(
+            pr => pr.entity_id === entity.id && !(pr.property_path ?? '').startsWith('link:'),
+          );
+          if (entityProv.length > 0) {
+            edit.payload.provenance = entityProv.map(toPayloadProvenance);
+          }
+        }
+        edits.push(withEvaluation(edit, knownEntityIds));
       }
 
       for (const link of links as Link[]) {
         const { id: _id, created_at: _createdAt, ...linkFields } = link;
         const rationale = buildRationale(source, 'link', link, provenance);
-        edits.push(
-          withEvaluation(
-            proposeCreateLink(tenant, linkFields, INGEST_PROPOSED_BY, rationale),
-            knownEntityIds,
-          ),
-        );
+        const edit = proposeCreateLink(tenant, linkFields, INGEST_PROPOSED_BY, rationale);
+        if (preserveIds) {
+          const marker = `link:${link.type}->${link.target_entity_id}`;
+          const linkProv = (provenance as Provenance[]).filter(
+            pr => pr.entity_id === link.source_entity_id && pr.property_path === marker,
+          );
+          if (linkProv.length > 0) {
+            edit.payload.provenance = linkProv.map(toPayloadProvenance);
+          }
+        }
+        edits.push(withEvaluation(edit, knownEntityIds));
       }
     } catch {
       // Malformed record: skip it, never abort the batch or throw.
@@ -128,6 +147,27 @@ export function buildProposedEditsFromRecords(
  * the ingest route's insert). Pure and non-mutating: evaluate() never writes
  * anywhere, and the proposal itself is returned as a new object.
  */
+/**
+ * Shape a mapper Provenance entry for the approve RPC's payload contract
+ * (migrations intel_0014/0029): the RPC reads source_key/source_url/
+ * fetched_at/confidence/raw/licence_class/licence_terms/property_path and
+ * defaults licence fields from intel.sources by source_key. The mapper-local
+ * id/entity_id fields are dropped — the RPC attributes provenance itself.
+ */
+function toPayloadProvenance(pr: Provenance): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    source_key: pr.source_key,
+    fetched_at: pr.fetched_at,
+  };
+  if (pr.source_url     !== undefined) out.source_url     = pr.source_url;
+  if (pr.confidence     !== undefined) out.confidence     = pr.confidence;
+  if (pr.raw            !== undefined) out.raw            = pr.raw;
+  if (pr.licence_class  !== undefined) out.licence_class  = pr.licence_class;
+  if (pr.licence_terms  !== undefined) out.licence_terms  = pr.licence_terms;
+  if (pr.property_path  !== undefined) out.property_path  = pr.property_path;
+  return out;
+}
+
 function withEvaluation(
   edit:           ProposedEdit,
   knownEntityIds: Set<string>,

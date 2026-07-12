@@ -35,6 +35,16 @@ export interface SourceDef {
 
 export const SOURCES: SourceDef[] = [
   {
+    key: 'kammandor-deals',
+    label: 'Kammandor Deal Graph',
+    category: 'corporate',
+    tier: 'free',
+    auth: 'none',
+    renderMode: 'enrichment',
+    enabledByDefault: true,
+    licence: { class: 'proprietary', terms: 'First-party tenant data from the Kammandor platform (deals, companies, contacts, counterparty relationships). Strictly Private & Confidential; tenant-scoped; no external licence applies.' },
+  },
+  {
     key: 'ofac-sdn',
     label: 'OFAC SDN Sanctions',
     category: 'sanctions',
