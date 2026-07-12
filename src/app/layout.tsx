@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import ErrorBoundary from '@/components/ErrorBoundary';
+import AuthHashBridge from '@/components/AuthHashBridge';
 import { getBrand, resolveBrandKey } from '@/config/brands';
 import BrandThemeScript from '@/components/BrandThemeScript';
 import "./globals.css";
@@ -127,6 +128,11 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased">
+        {/* Magic-link session rescue: captures Supabase auth tokens arriving
+            in the URL hash on ANY page (e.g. when the magic link redirects to
+            the Site URL instead of /review) and forwards to /review. No-op on
+            normal loads — see src/components/AuthHashBridge.tsx. */}
+        <AuthHashBridge />
         <ErrorBoundary name={`${activeBrand.name} Core`}>
           {children}
         </ErrorBoundary>

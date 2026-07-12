@@ -307,7 +307,15 @@ export default function ReviewInboxPage() {
       setAuthError('Enter an email address.');
       return;
     }
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim() });
+    // Ask Supabase to send the user back to /review. NOTE: this only takes
+    // effect if the URL is on the Supabase Auth redirect allow-list —
+    // otherwise Supabase falls back to the Site URL (the map page), where
+    // the root layout's AuthHashBridge captures the hash session and
+    // forwards here anyway. Belt AND braces; the bridge is the braces.
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { emailRedirectTo: `${window.location.origin}/review` },
+    });
     if (error) {
       setAuthError(error.message);
       return;
