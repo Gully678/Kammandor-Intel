@@ -50,11 +50,24 @@ PLATFORM_DATASETS: list[tuple[str, str, str]] = [
     ("x.com",                "BRIGHTDATA_DS_X_PROFILES",   "x"),
 ]
 
+# Confirmed against Bright Data example responses (LinkedIn people/posts, TikTok).
+# Others remain best-effort until a live sample is seen per scraper.
 _ENGAGEMENT_KEYS = (
     "likes", "num_likes", "likes_count", "comments", "num_comments", "comments_count",
     "shares", "num_shares", "views", "num_views", "views_count", "followers",
     "reactions", "engagement", "plays", "retweets", "sentiment",
+    # LinkedIn people (collect by URL): followers, connections
+    "connections",
+    # LinkedIn posts (discover by company URL): num_likes, num_comments,
+    # user_followers, user_posts, user_articles
+    "user_followers", "user_posts", "user_articles",
+    # TikTok profiles (collect by URL): followers, following, likes,
+    # videos_count, awg_engagement_rate
+    "following", "videos_count", "awg_engagement_rate",
 )
+# Confirmed timestamp field names (per dataset): TikTok create_time,
+# LinkedIn posts date_posted, generic timestamp/date.
+_TIMESTAMP_KEYS = ("timestamp", "create_time", "date_posted", "date")
 
 
 def _svc_headers() -> dict[str, str]:
@@ -76,11 +89,16 @@ def _s(v: Any) -> Optional[str]:
 
 
 def _map_item(rec: dict[str, Any], platform: str) -> dict[str, Any]:
-    ext = _s(rec.get("id")) or _s(rec.get("post_id")) or _s(rec.get("url")) or _s(rec.get("input_url")) \
+    ext = _s(rec.get("id")) or _s(rec.get("post_id")) or _s(rec.get("account_id")) \
+        or _s(rec.get("url")) or _s(rec.get("input_url")) or _s(rec.get("use_url")) \
         or hashlib.sha1(str(rec).encode()).hexdigest()[:16]
     title = _s(rec.get("title")) or _s(rec.get("caption")) or _s(rec.get("name")) or _s(rec.get("text")) or f"Item {ext}"
     url = _s(rec.get("url")) or _s(rec.get("post_url")) or _s(rec.get("input_url"))
     attrs = {k: rec[k] for k in _ENGAGEMENT_KEYS if k in rec and rec[k] not in (None, "")}
+    for tk in _TIMESTAMP_KEYS:
+        if tk in rec and rec[tk] not in (None, ""):
+            attrs["timestamp"] = rec[tk]
+            break
     # content_hash lets the engine detect net-CHANGED (e.g. engagement/price moved)
     content_hash = hashlib.sha1(repr(sorted(attrs.items())).encode()).hexdigest() if attrs else None
     kind = "post" if platform not in ("linkedin-company",) else "mention"
