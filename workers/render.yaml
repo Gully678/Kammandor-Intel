@@ -27,3 +27,71 @@ services:
     sync: false
   - key: XAI_API_KEY
     sync: false
+  # Live-heartbeat harvest (also used by the on-demand POST /harvest route):
+  - key: INTEL_ENGINE_BASE
+    value: https://intel.kammandor.com
+  - key: AUTOMATE_SECRET
+    sync: false
+  - key: BRIGHTDATA_API_KEY
+    sync: false
+  - key: BRIGHTDATA_DS_LI_COMPANIES
+    sync: false
+  - key: BRIGHTDATA_DS_LI_PEOPLE
+    sync: false
+  - key: BRIGHTDATA_DS_X_PROFILES
+    sync: false
+  - key: BRIGHTDATA_DS_IG_PROFILES
+    sync: false
+  - key: BRIGHTDATA_DS_TIKTOK_PROFILES
+    sync: false
+  - key: BRIGHTDATA_DS_YT_CHANNELS
+    sync: false
+  - key: BRIGHTDATA_DS_FB_PAGES
+    sync: false
+  - key: BRIGHTDATA_DS_REDDIT
+    sync: false
+
+- type: cron
+  name: kammandor-intel-heartbeat
+  runtime: python
+  rootDir: workers
+  # Live net-new heartbeat: scrape each tenant's Bright Data collect-by-URL
+  # scrapers for its watchlist handle URLs, push typed items to the engine's
+  # grounding/delta brain. First sight baselines (0 signals); later runs signal
+  # only net-new / net-changed. Every 6 hours (adjust to taste in the dashboard).
+  schedule: "0 */6 * * *"
+  buildCommand: pip install -r requirements.txt
+  startCommand: python -m app.scheduler
+  plan: starter
+  envVars:
+  - key: SUPABASE_URL
+    sync: false
+  - key: SUPABASE_SERVICE_ROLE_KEY
+    sync: false
+  - key: PYTHON_VERSION
+    value: 3.11.9
+  # The delta brain lives on the engine (Vercel). The cron pushes to it:
+  - key: INTEL_ENGINE_BASE
+    value: https://intel.kammandor.com
+  - key: AUTOMATE_SECRET
+    sync: false
+  # Bright Data key may come from Vault; set here to override. Dataset IDs are
+  # env-only (per platform) — set the ones you use:
+  - key: BRIGHTDATA_API_KEY
+    sync: false
+  - key: BRIGHTDATA_DS_LI_COMPANIES
+    sync: false
+  - key: BRIGHTDATA_DS_LI_PEOPLE
+    sync: false
+  - key: BRIGHTDATA_DS_X_PROFILES
+    sync: false
+  - key: BRIGHTDATA_DS_IG_PROFILES
+    sync: false
+  - key: BRIGHTDATA_DS_TIKTOK_PROFILES
+    sync: false
+  - key: BRIGHTDATA_DS_YT_CHANNELS
+    sync: false
+  - key: BRIGHTDATA_DS_FB_PAGES
+    sync: false
+  - key: BRIGHTDATA_DS_REDDIT
+    sync: false
