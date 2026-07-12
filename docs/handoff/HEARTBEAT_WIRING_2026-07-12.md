@@ -50,3 +50,18 @@ Set only the platforms you actually watch:
 - **What "working" looks like:** first run of a new subject → `grounded:true, baselined:N, signalled:0`. A later run after the subject posts/changes → `net_new` / `net_changed` > 0 and rows land in `public.intelligence_alerts` (status `open`) → dashboard feed + SSE.
 
 **When keys are in, tell me** and I'll trigger a live `/harvest` for a test watchlist and confirm grounding-then-delta on the real Bright Data schema (and lock the exact attribute field names per scraper).
+
+---
+
+## SERP layer added (2026-07-12, commit fb6085b — live, verified)
+The heartbeat now also listens on **search engines** via DataForSEO SERP (read live from docs.dataforseo.com/v3/serp/). For every **name-based** watchlist subject (`keyword` / `company` / `product`) the engine pulls **Google News + Google Organic** (Live/Advanced, inline result) and pushes each result through the **same** grounding/delta brain → first sight baselines, later runs signal only net-new articles (new URL) or net-changed (title/snippet/rank moved).
+
+**Endpoints wired:** `POST /v3/serp/google/news/live/advanced` and `/organic/live/advanced` (Basic `base64(DATAFORSEO_LOGIN:DATAFORSEO_API_KEY)`; `location_code=2826` UK, `language_code=en`).
+
+**New engine route:** `POST /api/automate/serp` — auth = handoff token OR `x-automate-secret`+`{tenant}`. Gated: no DataForSEO keys / no name subjects → clean no-op.
+
+**Keys to add:** none new — SERP reuses the **DataForSEO** keys already listed for reviews (`DATAFORSEO_LOGIN` + `DATAFORSEO_API_KEY` in Vault). Optional `SERP_PROVIDER` (default `dataforseo`).
+
+**Scheduling:** the Render cron (`kammandor-intel-heartbeat`) now enumerates every tenant with any active watchlist item and, per tenant, runs BOTH the Bright Data social harvest AND the SERP harvest — both gated no-ops when not applicable.
+
+**Full DataForSEO SERP surface available** (for future slices): Google (Organic, News, Maps, Local Finder, Events, Images, Jobs, Autocomplete, Ads, Finance), Bing, YouTube, Yahoo, Baidu, Naver, Seznam — plus SERP Screenshot + AI Summary. We wired News + Organic first as the highest-value net-new signals; the rest are the same client + a different endpoint slug.
